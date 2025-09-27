@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.dsl.operators import EvaluationError
 from app.models.schemas import (
     RegressionUpsertRequest,
     RuleCreateRequest,
@@ -51,7 +52,10 @@ def create_rule_version(
     payload: RuleCreateRequest,
     catalog: RuleCatalogService = Depends(get_catalog_service),
 ) -> RuleVersionResponse:
-    rule = catalog.create_rule_version(payload)
+    try:
+        rule = catalog.create_rule_version(payload)
+    except EvaluationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return RuleVersionResponse(rule=rule)
 
 

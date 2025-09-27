@@ -14,6 +14,7 @@ from app.models.schemas import (
     RuleSummary,
     RuleVersion,
 )
+from app.dsl.validator import LogicValidator, get_logic_validator
 
 
 class RuleNotFoundError(Exception):
@@ -32,8 +33,9 @@ class RuleCatalogService:
     kata but mirrors the behaviour of a persistent catalog.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, validator: LogicValidator | None = None) -> None:
         self._store: Dict[str, List[RuleVersion]] = {}
+        self._validator = validator or get_logic_validator()
 
     # ------------------------------------------------------------------
     # CRUD operations
@@ -41,6 +43,7 @@ class RuleCatalogService:
     def create_rule_version(self, payload: RuleCreateRequest) -> RuleVersion:
         """Create a new rule version from the provided payload."""
 
+        self._validator.validate(payload.definition)
         versions = self._store.setdefault(payload.stable_id, [])
         version_number = versions[-1].version + 1 if versions else 1
         timestamp = datetime.utcnow()

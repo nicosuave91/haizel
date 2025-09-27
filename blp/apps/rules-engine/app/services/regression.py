@@ -12,14 +12,21 @@ from app.models.schemas import (
 )
 from app.services.catalog import RuleCatalogService, get_catalog_service
 from app.services.evaluator import EvaluatorService, get_evaluator_service
+from app.services.proofs import EvaluationProofStore, get_evaluation_proof_store
 
 
 class RegressionService:
     """Execute stored or ad-hoc regression test cases for a rule."""
 
-    def __init__(self, catalog: RuleCatalogService, evaluator: EvaluatorService) -> None:
+    def __init__(
+        self,
+        catalog: RuleCatalogService,
+        evaluator: EvaluatorService,
+        proof_store: EvaluationProofStore,
+    ) -> None:
         self._catalog = catalog
         self._evaluator = evaluator
+        self._proof_store = proof_store
 
     def run(self, request: RegressionRunRequest) -> RegressionRunResponse:
         rule = self._catalog.get_rule_version(
@@ -41,6 +48,14 @@ class RegressionService:
         passed = 0
         for case in cases:
             evaluation = self._evaluator.evaluate(rule.definition, case.context)
+            self._proof_store.record(
+                stable_id=rule.stable_id,
+                version=rule.version,
+                logic=rule.definition,
+                context=case.context,
+                result=evaluation.result,
+                trace=evaluation.trace,
+            )
             success = evaluation.result == case.expected
             if success:
                 passed += 1
@@ -66,7 +81,9 @@ class RegressionService:
         )
 
 
-_regression_service = RegressionService(get_catalog_service(), get_evaluator_service())
+_regression_service = RegressionService(
+    get_catalog_service(), get_evaluator_service(), get_evaluation_proof_store()
+)
 
 
 def get_regression_service() -> RegressionService:

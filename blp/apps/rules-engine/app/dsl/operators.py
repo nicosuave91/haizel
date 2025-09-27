@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set
 
 
 class EvaluationError(Exception):
@@ -30,6 +30,11 @@ class ExtendedJsonLogic:
         trace: List[Dict[str, Any]] = []
         result = self._eval(expression, data, trace, path="$")
         return result, trace
+
+    def supported_operators(self) -> Set[str]:
+        """Return the set of operators supported by the evaluator."""
+
+        return set(self._operators.keys())
 
     # ------------------------------------------------------------------
     # Internal helpers

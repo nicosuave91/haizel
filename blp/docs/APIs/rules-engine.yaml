@@ -363,6 +363,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TraceStep'
+        proof:
+          $ref: '#/components/schemas/EvaluationProof'
+    EvaluationProof:
+      type: object
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        stable_id:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          nullable: true
     RegressionCaseResult:
       type: object
       properties:

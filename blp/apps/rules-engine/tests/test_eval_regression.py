@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.services.catalog import get_catalog_service
+from app.services.proofs import get_evaluation_proof_store
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +23,14 @@ def reset_catalog_state() -> None:
     catalog.clear()
     yield
     catalog.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_proof_store() -> None:
+    store = get_evaluation_proof_store()
+    store.clear()
+    yield
+    store.clear()
 
 
 @pytest.fixture
@@ -103,12 +112,20 @@ def test_rule_lifecycle_and_evaluation(client: TestClient) -> None:
     assert evaluation["result"] == "approve"
     assert evaluation["version"] == 2
     assert evaluation["trace"]
+    assert evaluation["proof"]["id"]
+
+    store = get_evaluation_proof_store()
+    artifact = store.get(evaluation["proof"]["id"])
+    assert artifact.result == "approve"
+    assert artifact.stable_id == "loan-decision"
+    assert artifact.version == 2
 
     inline_eval_payload = {"logic": {"+": [1, 2, 3]}, "context": {}}
     response = client.post("/eval", json=inline_eval_payload)
     assert response.status_code == 200
     inline_result = response.json()
     assert pytest.approx(inline_result["result"], rel=1e-6) == 6.0
+    assert inline_result["proof"]["id"]
 
     regression_response = client.post(
         "/eval/regressions",
@@ -118,6 +135,9 @@ def test_rule_lifecycle_and_evaluation(client: TestClient) -> None:
     regression_body = regression_response.json()
     assert regression_body["total"] == 3
     assert regression_body["failed"] == 0
+
+    artifacts = store.list_for_rule("loan-decision")
+    assert len(artifacts) == 4
 
 
 def test_regression_runner_detects_failures(client: TestClient) -> None:
@@ -154,3 +174,15 @@ def test_regression_runner_detects_failures(client: TestClient) -> None:
     failing_case = next(case for case in result["cases"] if not case["success"])
     assert failing_case["name"] == "fails-when-flag-missing"
     assert failing_case["actual"] is False
+
+
+def test_invalid_rule_definition_returns_400(client: TestClient) -> None:
+    response = client.post(
+        "/rules",
+        json={
+            "stable_id": "invalid",
+            "name": "Invalid",
+            "definition": {"bad": [1, 2, 3]},
+        },
+    )
+    assert response.status_code == 400
