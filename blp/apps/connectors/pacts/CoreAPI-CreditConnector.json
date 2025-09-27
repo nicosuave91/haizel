@@ -1,0 +1,109 @@
+{
+  "consumer": {
+    "name": "CoreAPI"
+  },
+  "interactions": [
+    {
+      "description": "a credit pull request",
+      "providerState": "credit bureau accepts a pull",
+      "request": {
+        "body": {
+          "borrowerId": "borrower-1",
+          "includeScore": true,
+          "ssn": "123-45-6789"
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Idempotency-Key": "credit-pull-1"
+        },
+        "method": "POST",
+        "path": "/api/v1/credit/pulls"
+      },
+      "response": {
+        "body": {
+          "requestId": "borrower-1-PULL",
+          "status": "COMPLETED"
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "$.body.requestId": {
+            "match": "type"
+          },
+          "$.body.status": {
+            "match": "type"
+          }
+        },
+        "status": 202
+      }
+    },
+    {
+      "description": "a credit pull result request",
+      "providerState": "a credit pull result exists",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/credit/pulls/borrower-1-PULL"
+      },
+      "response": {
+        "body": {
+          "borrowerId": "borrower-1",
+          "refreshedAt": "2024-01-01T00:00:00.000Z",
+          "requestId": "borrower-1-PULL",
+          "score": 720,
+          "status": "COMPLETED",
+          "tradelines": [
+            {
+              "balance": 15000,
+              "creditor": "Sample Bank",
+              "status": "OPEN"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "matchingRules": {
+          "$.body.refreshedAt": {
+            "match": "type"
+          },
+          "$.body.score": {
+            "match": "type"
+          },
+          "$.body.status": {
+            "match": "type"
+          },
+          "$.body.tradelines": {
+            "match": "type",
+            "min": 1
+          },
+          "$.body.tradelines[*].balance": {
+            "match": "type"
+          },
+          "$.body.tradelines[*].creditor": {
+            "match": "type"
+          },
+          "$.body.tradelines[*].status": {
+            "match": "type"
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "12.5.2"
+    },
+    "pactRust": {
+      "ffi": "0.4.20",
+      "models": "1.2.0"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "CreditConnector"
+  }
+}
