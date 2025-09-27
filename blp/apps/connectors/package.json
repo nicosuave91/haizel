@@ -1,0 +1,9 @@
+{
+  "name": "connectors",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm concurrently 'pnpm --filter ppe-adapter dev' 'pnpm --filter credit dev' 'pnpm --filter aus-gateway dev' 'pnpm --filter esign dev'"
+  }
+}
