@@ -163,6 +163,18 @@ class EvaluationResponse(BaseModel):
     version: Optional[int]
     result: Any
     trace: List[TraceStep]
+    proof: "EvaluationProof"
+
+
+class EvaluationProof(BaseModel):
+    """Summary metadata about a persisted evaluation artefact."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    created_at: datetime
+    stable_id: Optional[str] = None
+    version: Optional[int] = None
 
 
 class RegressionCaseResult(BaseModel):
@@ -203,3 +215,6 @@ class RegressionRunResponse(BaseModel):
     passed: int
     failed: int
     cases: List[RegressionCaseResult]
+
+
+EvaluationResponse.model_rebuild()
