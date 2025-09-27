@@ -1,0 +1,1447 @@
+openapi: 3.1.0
+info:
+  title: Haizel Mortgage Pipeline API
+  version: 0.1.0
+  description: |
+    Production-grade multi-tenant workflow APIs covering Steps 0–10 of the Haizel™ loan pipeline.
+    All requests require an `X-Tenant-Id` header and bearer authentication. Mutating requests also
+    require an `Idempotency-Key` header.
+servers:
+  - url: https://api.haizel.local/v1
+    description: Local development
+  - url: https://api.haizel.app/v1
+    description: Production
+security:
+  - TenantAuth: []
+tags:
+  - name: Auth
+    description: Tenant scoped authentication and authorization endpoints.
+  - name: Loans
+    description: Loan lifecycle management.
+  - name: Workflow
+    description: Workflow orchestration and evidence tracking.
+  - name: Verifications
+    description: Borrower verification vendor calls.
+  - name: Orders
+    description: Property and risk ordering.
+  - name: AUS
+    description: Automated Underwriting submissions and findings.
+  - name: Title
+    description: Title and settlement orchestration.
+  - name: Disclosures
+    description: TRID disclosures and e-signature handling.
+  - name: Compliance
+    description: Compliance evaluation gates.
+  - name: Reporting
+    description: Reporting and audit APIs.
+  - name: Webhooks
+    description: Vendor webhook ingress and event consumers.
+paths:
+  /auth/token:
+    post:
+      tags: [Auth]
+      summary: Exchange an authorization code for a session token
+      description: Validates the OIDC authorization code and enforces tenant scoping.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, redirectUri]
+              properties:
+                code:
+                  type: string
+                  description: Authorization code returned by the OIDC provider.
+                redirectUri:
+                  type: string
+                  format: uri
+                  description: Redirect URI used in the login flow.
+                tenantSlug:
+                  type: string
+                  description: Tenant slug asserting organizational scope.
+            examples:
+              default:
+                value:
+                  code: eyJhbGciOi...
+                  redirectUri: https://app.haizel.local/login/callback
+                  tenantSlug: apex-lending
+      responses:
+        '200':
+          description: Session token issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /me:
+    get:
+      tags: [Auth]
+      summary: Retrieve the current user profile and effective policies
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: Current user session information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+  /loans:
+    post:
+      tags: [Loans]
+      summary: Start a loan file
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoanRequest'
+            examples:
+              purchaseLoan:
+                value:
+                  intent: purchase
+                  targetLoanAmount: 42500000
+                  property:
+                    state: VA
+                    county: Fairfax
+                    type: SFR
+                    occupancy: Primary
+                  borrowerRef:
+                    create:
+                      firstName: Ava
+                      lastName: Nguyen
+                      dob: '1991-05-07'
+                      email: ava@example.com
+                      phone: '+17035551234'
+      responses:
+        '201':
+          description: Loan created.
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Canonical URL of the created loan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+        '409':
+          $ref: '#/components/responses/IdempotencyReplayed'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /loans/{loanId}:
+    get:
+      tags: [Loans]
+      summary: Retrieve a loan by identifier
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - in: path
+          name: loanId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Loan details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /loans/{loanId}/preflight/run:
+    post:
+      tags: [Workflow]
+      summary: Execute pre-flight compliance checks
+      description: Runs borrower completeness, TRID/ECOA/RESPA timers, and disclosure prerequisites.
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: Pre-flight checks enqueued and workflow updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowStepResponse'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/workflow/init:
+    post:
+      tags: [Workflow]
+      summary: Seed the canonical workflow steps for a loan
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '201':
+          description: Workflow initialized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowInitResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /loans/{loanId}/workflow:
+    get:
+      tags: [Workflow]
+      summary: List workflow steps for a loan
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Workflow steps with latest status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowStep'
+  /loans/{loanId}/verifications/credit:
+    post:
+      tags: [Verifications]
+      summary: Run tri-merge credit verification
+      description: Pulls credit through the configured provider adapter once compliance gates pass.
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditVerificationRequest'
+      responses:
+        '202':
+          description: Credit pull accepted; workflow step moved to in_progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationAccepted'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/verifications/income-employment:
+    post:
+      tags: [Verifications]
+      summary: Run income and employment verification
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncomeEmploymentVerificationRequest'
+      responses:
+        '202':
+          description: Verification accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationAccepted'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/verifications/assets:
+    post:
+      tags: [Verifications]
+      summary: Run asset verification via connected provider
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetVerificationRequest'
+      responses:
+        '202':
+          description: Asset verification started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationAccepted'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/orders/appraisal:
+    post:
+      tags: [Orders]
+      summary: Order appraisal from the AMC provider
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppraisalOrderRequest'
+      responses:
+        '202':
+          description: Appraisal order accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderAccepted'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/orders/flood:
+    post:
+      tags: [Orders]
+      summary: Order flood certification
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: Flood order accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderAccepted'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/orders/mi-quote:
+    post:
+      tags: [Orders]
+      summary: Request a mortgage insurance quote when required
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: MI quote requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderAccepted'
+        '409':
+          description: MI not required under current loan parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /integrations/webhooks/{vendor}:
+    post:
+      tags: [Webhooks]
+      summary: Receive vendor webhook callbacks
+      description: Validates HMAC signatures, persists vendor call updates, and advances workflow steps.
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - in: path
+          name: vendor
+          required: true
+          schema:
+            type: string
+            enum: [amc, flood, mi, title]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '202':
+          description: Webhook processed asynchronously.
+  /loans/{loanId}/aus/submit:
+    post:
+      tags: [AUS]
+      summary: Submit loan to AUS and receive normalized findings
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AUSSubmitRequest'
+      responses:
+        '200':
+          description: AUS findings received.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AUSSubmitResponse'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/title/open:
+    post:
+      tags: [Title]
+      summary: Open title order with preferred provider
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: Title order opened.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderAccepted'
+  /loans/{loanId}/title/commitment:
+    get:
+      tags: [Title]
+      summary: Retrieve latest title commitment details
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Title commitment data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TitleCommitmentResponse'
+  /loans/{loanId}/title/curative:
+    post:
+      tags: [Title]
+      summary: Record title curative tasks and evidence
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TitleCurativeRequest'
+      responses:
+        '201':
+          description: Curative entry recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurativeResponse'
+  /loans/{loanId}/disclosures/generate:
+    post:
+      tags: [Disclosures]
+      summary: Generate disclosure documents for review
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: Disclosure package generation started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosurePackageResponse'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/disclosures/send-for-esign:
+    post:
+      tags: [Disclosures]
+      summary: Send disclosures for e-signature
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: E-sign process initiated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosureEnvelopeResponse'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /integrations/webhooks/esign:
+    post:
+      tags: [Webhooks]
+      summary: Receive e-signature provider callbacks
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ESignWebhookPayload'
+      responses:
+        '202':
+          description: E-sign webhook accepted.
+  /loans/{loanId}/closing/generate:
+    post:
+      tags: [Disclosures]
+      summary: Generate closing package
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: Closing package generation started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosurePackageResponse'
+  /loans/{loanId}/closing/send:
+    post:
+      tags: [Disclosures]
+      summary: Send closing package for execution
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '202':
+          description: Closing package sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosureEnvelopeResponse'
+  /loans/{loanId}/ctc/evaluate:
+    post:
+      tags: [Compliance]
+      summary: Evaluate clear-to-close readiness
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Compliance evaluation results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CTCEvaluationResponse'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/close:
+    post:
+      tags: [Loans]
+      summary: Finalize a loan after settlement confirmation
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Loan closed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+  /loans/{loanId}/audit-trail:
+    get:
+      tags: [Reporting]
+      summary: Retrieve audit trail for a loan
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Chronological audit events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditTrailResponse'
+  /reports/pipeline:
+    get:
+      tags: [Reporting]
+      summary: Generate pipeline performance report
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, in_progress, complete, failed]
+        - in: query
+          name: ownerRole
+          schema:
+            type: string
+            enum: [LO, PROCESSOR, CLOSER, TITLE, SYSTEM]
+      responses:
+        '200':
+          description: Aggregated pipeline metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineReportResponse'
+  /compliance/evaluate:
+    post:
+      tags: [Compliance]
+      summary: Evaluate compliance rules for a given stage
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplianceEvaluateRequest'
+            examples:
+              preflight:
+                value:
+                  loanId: 5a19e02f-ff9a-4a0c-97d2-90ae5dfb6b4b
+                  stage: PRE_FLIGHT
+      responses:
+        '200':
+          description: Compliance evaluation result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceEvaluateResponse'
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
+components:
+  securitySchemes:
+    TenantAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token issued by the Haizel identity service.
+  parameters:
+    TenantHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      description: Tenant identifier for multi-tenant isolation.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Ensures idempotent handling of mutating requests (24h TTL).
+      schema:
+        type: string
+        minLength: 8
+    LoanId:
+      name: loanId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AuthTokenResponse:
+      type: object
+      required: [accessToken, expiresIn, scope]
+      properties:
+        accessToken:
+          type: string
+          description: Bearer token for subsequent requests.
+        expiresIn:
+          type: integer
+          format: int32
+          description: Expiration in seconds.
+        scope:
+          type: array
+          items:
+            type: string
+        refreshToken:
+          type: string
+    MeResponse:
+      type: object
+      required: [user, policies]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Policy'
+    User:
+      type: object
+      required: [id, email, role, displayName, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [LO, PROCESSOR, CLOSER, TITLE, ADMIN]
+        displayName:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended]
+    Policy:
+      type: object
+      required: [id, name, effect, resource, action]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        effect:
+          type: string
+          enum: [allow, deny]
+        resource:
+          type: string
+        action:
+          type: string
+        condition:
+          type: object
+          additionalProperties: true
+    LoanResponse:
+      type: object
+      required: [loan, borrower]
+      properties:
+        loan:
+          $ref: '#/components/schemas/Loan'
+        borrower:
+          $ref: '#/components/schemas/Borrower'
+        workflowSummary:
+          $ref: '#/components/schemas/WorkflowSummary'
+    Loan:
+      type: object
+      required: [id, tenantId, fileNo, intent, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        fileNo:
+          type: string
+        intent:
+          type: string
+          enum: [purchase, refinance]
+        purposeDetail:
+          type: string
+        targetLoanAmount:
+          type: integer
+          format: int64
+        property:
+          type: object
+          additionalProperties: true
+        productCode:
+          type: string
+        ltvBps:
+          type: integer
+        status:
+          type: string
+          enum: [draft, preflight_blocked, in_process, clear_to_close, closed]
+        ownerUserId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+    Borrower:
+      type: object
+      required: [id, tenantId, firstName, lastName, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        dob:
+          type: string
+          format: date
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          type: object
+          additionalProperties: true
+        kycStatus:
+          type: string
+          enum: [pending, verified, failed]
+    WorkflowSummary:
+      type: object
+      properties:
+        pendingSteps:
+          type: integer
+        completedSteps:
+          type: integer
+        blockedSteps:
+          type: integer
+    CreateLoanRequest:
+      type: object
+      required: [intent, targetLoanAmount, property, borrowerRef]
+      properties:
+        intent:
+          type: string
+          enum: [purchase, refinance]
+        purposeDetail:
+          type: string
+        targetLoanAmount:
+          type: integer
+          format: int64
+        property:
+          type: object
+          required: [state, county, type, occupancy]
+          properties:
+            state:
+              type: string
+            county:
+              type: string
+            type:
+              type: string
+            occupancy:
+              type: string
+        borrowerRef:
+          oneOf:
+            - type: object
+              required: [existingBorrowerId]
+              properties:
+                existingBorrowerId:
+                  type: string
+                  format: uuid
+            - type: object
+              required: [create]
+              properties:
+                create:
+                  type: object
+                  required: [firstName, lastName, dob, email, phone]
+                  properties:
+                    firstName:
+                      type: string
+                    lastName:
+                      type: string
+                    dob:
+                      type: string
+                      format: date
+                    email:
+                      type: string
+                      format: email
+                    phone:
+                      type: string
+    WorkflowStepResponse:
+      type: object
+      required: [step]
+      properties:
+        step:
+          $ref: '#/components/schemas/WorkflowStep'
+    WorkflowInitResponse:
+      type: object
+      required: [steps]
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStep'
+    WorkflowStep:
+      type: object
+      required:
+        - id
+        - loanId
+        - code
+        - title
+        - required
+        - ownerRole
+        - status
+        - preconditions
+        - evidenceRefs
+        - timestamps
+      properties:
+        id:
+          type: string
+          format: uuid
+        loanId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          enum: [CREDIT, INCOME_EMPLOYMENT, ASSETS, APPRAISAL, TITLE, FLOOD, MI, DISCLOSURES, AUS, CLOSING]
+        title:
+          type: string
+        required:
+          type: boolean
+        ownerRole:
+          type: string
+          enum: [LO, PROCESSOR, CLOSER, TITLE, SYSTEM]
+        status:
+          type: string
+          enum: [pending, blocked, in_progress, complete, failed, waived]
+        preconditions:
+          type: array
+          items:
+            type: string
+        dueAt:
+          type: string
+          format: date-time
+        slaSeconds:
+          type: integer
+        blockedReason:
+          type: string
+        evidenceRefs:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceRef'
+        timestamps:
+          type: object
+          required: [createdAt]
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+            startedAt:
+              type: string
+              format: date-time
+            completedAt:
+              type: string
+              format: date-time
+    EvidenceRef:
+      type: object
+      properties:
+        docId:
+          type: string
+          format: uuid
+        vendorCallId:
+          type: string
+          format: uuid
+        note:
+          type: string
+    CreditVerificationRequest:
+      type: object
+      required: [consentToken]
+      properties:
+        consentToken:
+          type: string
+        refreshOnly:
+          type: boolean
+          default: false
+    IncomeEmploymentVerificationRequest:
+      type: object
+      required: [consentToken]
+      properties:
+        consentToken:
+          type: string
+        employerHint:
+          type: string
+        payrollProvider:
+          type: string
+    AssetVerificationRequest:
+      type: object
+      required: [consentToken]
+      properties:
+        consentToken:
+          type: string
+        institutionHints:
+          type: array
+          items:
+            type: string
+    VerificationAccepted:
+      type: object
+      required: [workflowStepId, vendorCallId]
+      properties:
+        workflowStepId:
+          type: string
+          format: uuid
+        vendorCallId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running]
+    AppraisalOrderRequest:
+      type: object
+      required: [contact]
+      properties:
+        dueDate:
+          type: string
+          format: date
+        contact:
+          type: object
+          required: [name, phone, email]
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            email:
+              type: string
+              format: email
+        rush:
+          type: boolean
+          default: false
+    OrderAccepted:
+      type: object
+      required: [workflowStepId, vendorCallId]
+      properties:
+        workflowStepId:
+          type: string
+          format: uuid
+        vendorCallId:
+          type: string
+          format: uuid
+        eta:
+          type: string
+          format: date-time
+    AUSSubmitRequest:
+      type: object
+      required: [system]
+      properties:
+        system:
+          type: string
+          enum: [DU, LPA]
+        overrideReason:
+          type: string
+        documents:
+          type: array
+          items:
+            type: string
+            format: uuid
+    AUSSubmitResponse:
+      type: object
+      required: [decision, conditions]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVED_ELIGIBLE, REFER_WITH_CAUTION, OUT_OF_SCOPE]
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AUSCondition'
+        rawVendorResponse:
+          type: object
+          additionalProperties: true
+      examples:
+        approved:
+          value:
+            decision: APPROVED_ELIGIBLE
+            conditions:
+              - code: AUS-VOE-001
+                description: Provide written VOE for 24 months
+                severity: critical
+              - code: AUS-ASSET-002
+                description: Two months bank statements
+                severity: medium
+    AUSCondition:
+      type: object
+      required: [code, description, severity]
+      properties:
+        code:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+    TitleCommitmentResponse:
+      type: object
+      required: [commitment]
+      properties:
+        commitment:
+          type: object
+          additionalProperties: true
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentSummary'
+    TitleCurativeRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [code, description]
+            properties:
+              code:
+                type: string
+              description:
+                type: string
+              severity:
+                type: string
+                enum: [critical, high, medium, low]
+              evidenceRefs:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvidenceRef'
+    CurativeResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+    Condition:
+      type: object
+      required: [id, code, description, severity, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        status:
+          type: string
+          enum: [open, waived, met]
+        evidenceRefs:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceRef'
+    DisclosurePackageResponse:
+      type: object
+      required: [workflowStepId, documentIds]
+      properties:
+        workflowStepId:
+          type: string
+          format: uuid
+        documentIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    DisclosureEnvelopeResponse:
+      type: object
+      required: [envelopeId, status]
+      properties:
+        envelopeId:
+          type: string
+        status:
+          type: string
+          enum: [sent, delivered, completed]
+    ESignWebhookPayload:
+      type: object
+      required: [envelopeId, status, occurredAt]
+      properties:
+        envelopeId:
+          type: string
+        status:
+          type: string
+          enum: [sent, viewed, completed, declined]
+        occurredAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    CTCEvaluationResponse:
+      type: object
+      required: [passed, issues]
+      properties:
+        passed:
+          type: boolean
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceIssue'
+        details:
+          type: object
+          properties:
+            stepsRemaining:
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkflowStep'
+            openConditions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Condition'
+            manifestStatus:
+              type: string
+    ComplianceIssue:
+      type: object
+      required: [code, severity, message]
+      properties:
+        code:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, blocker]
+        message:
+          type: string
+        remediation:
+          type: string
+    ComplianceEvaluateRequest:
+      type: object
+      required: [loanId, stage]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        stage:
+          type: string
+          enum: [PRE_FLIGHT, VERIFICATION, AUS, DISCLOSURES, CTC, CLOSING]
+    ComplianceEvaluateResponse:
+      type: object
+      required: [stage, passed, issues]
+      properties:
+        stage:
+          type: string
+        passed:
+          type: boolean
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceIssue'
+    AuditTrailResponse:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+    AuditEvent:
+      type: object
+      required: [id, action, resource, occurredAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        resource:
+          type: string
+        resourceId:
+          type: string
+        actorUserId:
+          type: string
+          format: uuid
+        fieldsRedacted:
+          type: array
+          items:
+            type: string
+        ip:
+          type: string
+        ua:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+    PipelineReportResponse:
+      type: object
+      required: [generatedAt, loans]
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        loans:
+          type: array
+          items:
+            type: object
+            required: [loanId, status, ownerRole, slaBreaches]
+            properties:
+              loanId:
+                type: string
+                format: uuid
+              status:
+                type: string
+              ownerRole:
+                type: string
+              slaBreaches:
+                type: integer
+              dueAt:
+                type: string
+                format: date-time
+    DocumentSummary:
+      type: object
+      required: [id, kind, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        filename:
+          type: string
+        version:
+          type: integer
+        sha256:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+    ComplianceFailure:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [issues]
+          properties:
+            issues:
+              type: array
+              items:
+                $ref: '#/components/schemas/ComplianceIssue'
+    WorkflowStepStatusTransition:
+      type: object
+      required: [from, to, occurredAt, actor]
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        actor:
+          type: object
+          required: [id, role]
+          properties:
+            id:
+              type: string
+              format: uuid
+            role:
+              type: string
+    WorkflowStepHistory:
+      type: object
+      required: [step, transitions]
+      properties:
+        step:
+          $ref: '#/components/schemas/WorkflowStep'
+        transitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStepStatusTransition'
+    CTCTimelineEvent:
+      type: object
+      required: [type, occurredAt]
+      properties:
+        type:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+  responses:
+    ValidationError:
+      description: Request failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    ComplianceFailure:
+      description: Compliance gate failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ComplianceFailure'
+    Conflict:
+      description: Resource conflict (e.g., workflow already initialized).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    IdempotencyReplayed:
+      description: Previously processed request replayed; original response returned.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

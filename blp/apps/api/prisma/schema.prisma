@@ -1,0 +1,383 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  LO
+  PROCESSOR
+  CLOSER
+  TITLE
+  ADMIN
+}
+
+enum LoanIntent {
+  purchase
+  refinance
+}
+
+enum LoanStatus {
+  draft
+  preflight_blocked
+  in_process
+  clear_to_close
+  closed
+}
+
+enum WorkflowStepStatus {
+  pending
+  blocked
+  in_progress
+  complete
+  failed
+  waived
+}
+
+enum ConditionSource {
+  AUS
+  UW
+  QC
+  TITLE
+  MI
+}
+
+enum ConditionStatus {
+  open
+  waived
+  met
+}
+
+enum OutboxStatus {
+  pending
+  sent
+  failed
+}
+
+model Tenant {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  slug         String          @unique
+  settingsJson Json            @map("settings_json")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  users        User[]
+  policies     Policy[]
+  borrowers    Borrower[]
+  loans        Loan[]
+  documents    Document[]
+  vendorIntegrations VendorIntegration[]
+  complianceEvents ComplianceEvent[]
+  auditEvents  AuditEvent[]
+  outboxEntries Outbox[]
+  idempotencyKeys IdempotencyKey[]
+
+  @@map("tenants")
+}
+
+model User {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  email       String
+  role        UserRole
+  displayName String   @map("display_name")
+  status      String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loans       Loan[]   @relation("LoanOwner")
+  notes       LoanNote[] @relation("LoanNoteAuthor")
+  complianceEvents ComplianceEvent[] @relation("ComplianceActor")
+  auditEvents AuditEvent[] @relation("AuditActor")
+
+  @@index([tenantId, email], map: "idx_users_tenant_email")
+  @@map("users")
+}
+
+model Policy {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  effect        String
+  resource      String
+  action        String
+  conditionJson Json     @map("condition_json")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, name], map: "idx_policies_tenant_name")
+  @@map("policies")
+}
+
+model Borrower {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  dob           DateTime? @db.Date
+  ssnEncrypted  String?  @map("ssn_encrypted")
+  email         String
+  phone         String
+  addressJson   Json      @map("address_json")
+  kycStatus     String    @map("kyc_status")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loans         LoanParty[]
+  documents     Document[]
+
+  @@index([tenantId, lastName, firstName], map: "idx_borrowers_name")
+  @@map("borrowers")
+}
+
+model Loan {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String        @map("tenant_id") @db.Uuid
+  fileNo                String        @map("file_no")
+  intent                LoanIntent
+  purposeDetail         String?       @map("purpose_detail")
+  targetLoanAmountCents BigInt        @map("target_loan_amount_cents")
+  propertyJson          Json          @map("property_json")
+  productCode           String?       @map("product_code")
+  ltvBps                Int?          @map("ltv_bps")
+  status                LoanStatus
+  ownerUserId           String        @map("owner_user_id") @db.Uuid
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant                Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                 User          @relation("LoanOwner", fields: [ownerUserId], references: [id])
+  parties               LoanParty[]
+  notes                 LoanNote[]
+  workflowSteps         WorkflowStep[]
+  conditions            Condition[]
+  documents             Document[]
+  docManifest           DocManifest?
+  vendorCalls           VendorCall[]
+  complianceEvents      ComplianceEvent[]
+  auditEvents           AuditEvent[]
+  outboxEntries         Outbox[]
+
+  @@index([tenantId, status], map: "idx_loans_status")
+  @@unique([tenantId, fileNo], map: "uq_loans_tenant_file")
+  @@map("loans")
+}
+
+model LoanParty {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loanId     String  @map("loan_id") @db.Uuid
+  borrowerId String  @map("borrower_id") @db.Uuid
+  partyType  String  @map("party_type")
+  isPrimary  Boolean @map("is_primary")
+
+  loan       Loan    @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  borrower   Borrower @relation(fields: [borrowerId], references: [id], onDelete: Cascade)
+
+  @@index([loanId, partyType], map: "idx_loan_parties_type")
+  @@map("loan_parties")
+}
+
+model LoanNote {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loanId        String   @map("loan_id") @db.Uuid
+  authorUserId  String   @map("author_user_id") @db.Uuid
+  body          String
+  visibility    String
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  loan          Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  author        User     @relation("LoanNoteAuthor", fields: [authorUserId], references: [id])
+
+  @@index([loanId, createdAt], map: "idx_loan_notes_created")
+  @@map("loan_notes")
+}
+
+model WorkflowStep {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loanId             String             @map("loan_id") @db.Uuid
+  code               String
+  title              String
+  required           Boolean
+  ownerRole          UserRole           @map("owner_role")
+  status             WorkflowStepStatus
+  preconditionsJson  Json               @map("preconditions_json")
+  dueAt              DateTime?          @map("due_at") @db.Timestamptz(6)
+  slaSeconds         Int?               @map("sla_seconds")
+  startedAt          DateTime?          @map("started_at") @db.Timestamptz(6)
+  completedAt        DateTime?          @map("completed_at") @db.Timestamptz(6)
+  blockedReason      String?            @map("blocked_reason")
+  evidenceRefsJson   Json               @map("evidence_refs_json")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  loan               Loan               @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([loanId, code], map: "idx_workflow_step_code")
+  @@map("workflow_steps")
+}
+
+model Condition {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loanId            String         @map("loan_id") @db.Uuid
+  source            ConditionSource
+  code              String
+  description       String
+  severity          String
+  status            ConditionStatus
+  evidenceRefsJson  Json           @map("evidence_refs_json")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  loan              Loan           @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([loanId, status], map: "idx_conditions_status")
+  @@map("conditions")
+}
+
+model Document {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  loanId      String?  @map("loan_id") @db.Uuid
+  kind        String
+  filename    String
+  mime        String
+  size        BigInt
+  storageUrl  String   @map("storage_url")
+  sha256      String
+  version     Int
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  source      String
+  metadataJson Json    @map("metadata_json")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan        Loan?    @relation(fields: [loanId], references: [id])
+
+  @@index([tenantId, loanId], map: "idx_documents_loan")
+  @@index([tenantId, kind, version], map: "idx_documents_version")
+  @@map("documents")
+}
+
+model DocManifest {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loanId            String   @map("loan_id") @db.Uuid
+  requiredDocsJson  Json     @map("required_docs_json")
+  status            String
+  lastCheckedAt     DateTime? @map("last_checked_at") @db.Timestamptz(6)
+
+  loan              Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@map("doc_manifest")
+}
+
+model VendorIntegration {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  kind             String
+  vendorName       String   @map("vendor_name")
+  credentialsJson  Json     @map("credentials_json")
+  status           String
+  lastHealthAt     DateTime? @map("last_health_at") @db.Timestamptz(6)
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendorCalls      VendorCall[]
+
+  @@index([tenantId, kind], map: "idx_vendor_integrations_kind")
+  @@map("vendor_integrations")
+}
+
+model VendorCall {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  loanId           String   @map("loan_id") @db.Uuid
+  kind             String
+  requestJson      Json     @map("request_json")
+  responseJson     Json?    @map("response_json")
+  status           String
+  httpCode         Int?     @map("http_code")
+  errorCode        String?  @map("error_code")
+  idempotencyKey   String   @map("idempotency_key")
+  startedAt        DateTime @map("started_at") @db.Timestamptz(6)
+  finishedAt       DateTime? @map("finished_at") @db.Timestamptz(6)
+  retryCount       Int       @map("retry_count")
+
+  loan             Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, loanId], map: "idx_vendor_calls_loan")
+  @@index([tenantId, idempotencyKey], map: "idx_vendor_calls_idem")
+  @@map("vendor_calls")
+}
+
+model ComplianceEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  loanId         String   @map("loan_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  eventType      String   @map("event_type")
+  ruleId         String?  @map("rule_id")
+  severity       String
+  detailJson     Json     @map("detail_json")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan           Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  actor          User?    @relation("ComplianceActor", fields: [actorUserId], references: [id])
+
+  @@index([tenantId, loanId], map: "idx_compliance_events_loan")
+  @@map("compliance_events")
+}
+
+model AuditEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  loanId         String?  @map("loan_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  action         String
+  resource       String
+  resourceId     String   @map("resource_id")
+  fieldsRedacted String[] @map("fields_redacted")
+  ip             String
+  ua             String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan           Loan?    @relation(fields: [loanId], references: [id])
+  actor          User?    @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([tenantId, createdAt], map: "idx_audit_events_created")
+  @@map("audit_events")
+}
+
+model Outbox {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  loanId        String?   @map("loan_id") @db.Uuid
+  topic         String
+  payloadJson   Json      @map("payload_json")
+  status        OutboxStatus
+  attempts      Int
+  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan          Loan?     @relation(fields: [loanId], references: [id])
+
+  @@index([tenantId, status], map: "idx_outbox_status")
+  @@map("outbox")
+}
+
+model IdempotencyKey {
+  key               String  @id @map("key")
+  tenantId          String  @map("tenant_id") @db.Uuid
+  requestHash       String  @map("request_hash")
+  firstSeenAt       DateTime @map("first_seen_at") @db.Timestamptz(6)
+  status            String
+  responseSnapshot  Json     @map("response_snapshot_json")
+  ttlExpiresAt      DateTime @map("ttl_expires_at") @db.Timestamptz(6)
+
+  tenant            Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, requestHash], map: "idx_idem_request_hash")
+  @@map("idempotency_keys")
+}
