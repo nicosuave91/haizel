@@ -38,8 +38,19 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
-          if [ -f apps/rules-engine/requirements-dev.txt ]; then
+
+          if [ -f poetry.lock ] || { [ -f pyproject.toml ] && grep -q "\\[tool.poetry\\]" pyproject.toml; }; then
+            python -m pip install poetry
+            poetry install --no-interaction --with dev --no-root || poetry install --no-interaction
+          elif [ -f apps/rules-engine/poetry.lock ] || { [ -f apps/rules-engine/pyproject.toml ] && grep -q "\\[tool.poetry\\]" apps/rules-engine/pyproject.toml; }; then
+            python -m pip install poetry
+            (
+              cd apps/rules-engine
+              poetry install --no-interaction --with dev --no-root || poetry install --no-interaction
+            )
+          elif [ -f apps/rules-engine/requirements-dev.txt ]; then
             pip install -r apps/rules-engine/requirements-dev.txt
           elif [ -f apps/rules-engine/requirements.txt ]; then
             pip install -r apps/rules-engine/requirements.txt
