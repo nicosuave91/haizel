@@ -1,3 +1,10 @@
+import {
+  getVaultSecretPlaceholder,
+  handleWithIdempotency,
+  IdempotencyCache,
+  withRetries,
+} from '@haizel/connectors-shared';
+
 export interface EnvelopeParticipant {
   name: string;
   email: string;
@@ -66,10 +73,26 @@ class MockESignAdapter implements ESignAdapter {
 }
 
 export class ESignService {
+  private readonly idempotencyCache = new IdempotencyCache();
+
+  private readonly config = {
+    endpoint: process.env.ESIGN_API_URL ?? 'https://mock-esign.local',
+    webhookSecret: getVaultSecretPlaceholder('secret/data/connectors/esign', 'ESIGN_WEBHOOK_SECRET', 'development-secret'),
+  };
+
   constructor(private readonly adapter: ESignAdapter = new MockESignAdapter()) {}
 
-  createEnvelope(request: CreateEnvelopeRequest): Promise<EnvelopeSummary> {
-    return this.adapter.createEnvelope(request);
+  getWebhookSecret(): string {
+    return this.config.webhookSecret;
+  }
+
+  async createEnvelope(request: CreateEnvelopeRequest, idempotencyKey?: string): Promise<EnvelopeSummary> {
+    const result = await handleWithIdempotency(idempotencyKey, this.idempotencyCache, async () => {
+      const summary = await withRetries(() => this.adapter.createEnvelope(request));
+      return { status: 201, body: summary };
+    });
+
+    return result.body as EnvelopeSummary;
   }
 
   getEnvelope(envelopeId: string): Promise<EnvelopeSummary | undefined> {

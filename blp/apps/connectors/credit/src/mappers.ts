@@ -1,49 +1,66 @@
-export interface CreditReportRequest {
+export interface CreditPullRequest {
   borrowerId: string;
   ssn: string;
-  includeScore?: boolean;
-}
-
-export interface CreditAdapterPayload {
-  subjectReference: string;
-  social: string;
   includeScore: boolean;
 }
 
-export interface CreditReport {
+export interface CreditPullAcknowledgement {
+  requestId: string;
+  status: 'PENDING' | 'COMPLETED';
+}
+
+export interface CreditReportTradeline {
+  creditor: string;
+  balance: number;
+  status: 'OPEN' | 'CLOSED';
+}
+
+export interface CreditPullResult extends CreditPullAcknowledgement {
   borrowerId: string;
-  tradelines: Array<{
-    creditor: string;
-    balance: number;
-    status: 'OPEN' | 'CLOSED';
-  }>;
+  tradelines: CreditReportTradeline[];
   score?: number;
+  refreshedAt: string;
 }
 
-export interface CreditAdapterResponse {
-  tradelines: Array<{
-    creditor: string;
-    balance: number;
-    status: 'OPEN' | 'CLOSED';
-  }>;
-  score?: number;
+export interface CreditAdapterPullPayload {
+  subjectId: string;
+  ssn: string;
+  includeScore: boolean;
 }
 
-export function mapToAdapterPayload(request: CreditReportRequest): CreditAdapterPayload {
+export interface CreditAdapterPullResponse {
+  pullReference: string;
+  status: 'PENDING' | 'COMPLETED';
+  tradelines: CreditReportTradeline[];
+  score?: number;
+  refreshedAt: string;
+}
+
+export function mapToAdapterPayload(request: CreditPullRequest): CreditAdapterPullPayload {
   return {
-    subjectReference: request.borrowerId,
-    social: request.ssn,
-    includeScore: request.includeScore ?? true,
+    subjectId: request.borrowerId,
+    ssn: request.ssn,
+    includeScore: request.includeScore,
   };
 }
 
 export function mapFromAdapterResponse(
-  request: CreditReportRequest,
-  response: CreditAdapterResponse,
-): CreditReport {
+  request: CreditPullRequest,
+  response: CreditAdapterPullResponse,
+): CreditPullResult {
   return {
+    requestId: response.pullReference,
+    status: response.status,
     borrowerId: request.borrowerId,
     tradelines: response.tradelines,
     score: response.score,
+    refreshedAt: response.refreshedAt,
+  };
+}
+
+export function acknowledgementFromResult(result: CreditPullResult): CreditPullAcknowledgement {
+  return {
+    requestId: result.requestId,
+    status: result.status,
   };
 }

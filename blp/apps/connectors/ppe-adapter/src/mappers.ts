@@ -1,47 +1,111 @@
-export interface PPEEligibilityRequest {
-  borrowerId: string;
+export interface PPEQuoteRequest {
+  loanId: string;
   loanAmount: number;
+  productCode: string;
   propertyState: string;
-  occupancy: 'PRIMARY' | 'SECONDARY' | 'INVESTMENT';
+  lockPeriodDays: number;
+  ltv: number;
+  fico: number;
 }
 
-export interface PPEAdapterPayload {
-  subjectId: string;
+export interface PPEQuoteAdapterPayload {
+  caseId: string;
   amount: number;
+  product: string;
   state: string;
-  occupancyCode: string;
-}
-
-export interface PPEEligibilityDecision {
-  borrowerId: string;
-  eligible: boolean;
-  maxLtv: number;
-  notes?: string;
-}
-
-export interface PPEAdapterResponse {
-  allowed: boolean;
-  maxLtv: number;
-  reason?: string;
-}
-
-export function mapToAdapterPayload(request: PPEEligibilityRequest): PPEAdapterPayload {
-  return {
-    subjectId: request.borrowerId,
-    amount: request.loanAmount,
-    state: request.propertyState,
-    occupancyCode: request.occupancy.slice(0, 3),
+  lockPeriodDays: number;
+  risk: {
+    ltv: number;
+    fico: number;
   };
 }
 
-export function mapFromAdapterResponse(
-  request: PPEEligibilityRequest,
-  response: PPEAdapterResponse,
-): PPEEligibilityDecision {
+export interface PPEQuoteAdapterResponse {
+  quoteReference: string;
+  bestEffortRate: number;
+  price: number;
+  expiresAt: string;
+}
+
+export interface PPEQuoteResponse {
+  quoteId: string;
+  loanId: string;
+  rate: number;
+  price: number;
+  expiresAt: string;
+}
+
+export interface PPERateLockRequest {
+  quoteId: string;
+  loanId: string;
+  borrowerId: string;
+  lockPeriodDays: number;
+}
+
+export interface PPERateLockAdapterPayload {
+  quoteReference: string;
+  caseId: string;
+  borrower: string;
+  lockPeriodDays: number;
+}
+
+export interface PPERateLockAdapterResponse {
+  lockReference: string;
+  status: 'LOCKED' | 'REJECTED';
+  lockedRate: number;
+  expiresAt: string;
+}
+
+export interface PPERateLockResponse {
+  lockId: string;
+  status: 'LOCKED' | 'REJECTED';
+  lockedRate: number;
+  lockExpiresAt: string;
+}
+
+export function mapToQuotePayload(request: PPEQuoteRequest): PPEQuoteAdapterPayload {
   return {
-    borrowerId: request.borrowerId,
-    eligible: response.allowed,
-    maxLtv: response.maxLtv,
-    notes: response.reason,
+    caseId: request.loanId,
+    amount: request.loanAmount,
+    product: request.productCode,
+    state: request.propertyState,
+    lockPeriodDays: request.lockPeriodDays,
+    risk: {
+      ltv: request.ltv,
+      fico: request.fico,
+    },
+  };
+}
+
+export function mapFromQuoteResponse(
+  request: PPEQuoteRequest,
+  response: PPEQuoteAdapterResponse,
+): PPEQuoteResponse {
+  return {
+    quoteId: response.quoteReference,
+    loanId: request.loanId,
+    rate: response.bestEffortRate,
+    price: response.price,
+    expiresAt: response.expiresAt,
+  };
+}
+
+export function mapToLockPayload(request: PPERateLockRequest): PPERateLockAdapterPayload {
+  return {
+    quoteReference: request.quoteId,
+    caseId: request.loanId,
+    borrower: request.borrowerId,
+    lockPeriodDays: request.lockPeriodDays,
+  };
+}
+
+export function mapFromLockResponse(
+  response: PPERateLockAdapterResponse,
+): PPERateLockResponse {
+  return {
+    lockId: response.lockReference,
+    status: response.status,
+    lockedRate: response.lockedRate,
+    lockExpiresAt: response.expiresAt,
   };
 }
