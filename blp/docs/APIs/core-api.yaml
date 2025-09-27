@@ -2,4 +2,340 @@ openapi: 3.0.3
 info:
   title: BLP Core API
   version: 0.1.0
-paths: {}
+servers:
+  - url: https://api.dev.blp.local
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Liveness/readiness probe
+      security: []
+      responses:
+        '200':
+          description: API is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+  /auth/me:
+    get:
+      summary: Retrieve the authenticated subject profile
+      responses:
+        '200':
+          description: Authenticated principal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUser'
+  /loans:
+    get:
+      summary: List loans for the tenant
+      responses:
+        '200':
+          description: Loans available to the tenant
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Loan'
+    post:
+      summary: Create a loan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoanRequest'
+      responses:
+        '201':
+          description: Loan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+  /loans/{loanId}:
+    parameters:
+      - $ref: '#/components/parameters/loanId'
+    get:
+      summary: Retrieve a single loan
+      responses:
+        '200':
+          description: Loan details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+  /loans/{loanId}/documents:
+    parameters:
+      - $ref: '#/components/parameters/loanId'
+    get:
+      summary: List documents attached to a loan
+      responses:
+        '200':
+          description: Documents for the loan
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+    post:
+      summary: Upload a document to a loan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadDocumentRequest'
+      responses:
+        '201':
+          description: Document metadata stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+  /loans/{loanId}/pricing/lock:
+    parameters:
+      - $ref: '#/components/parameters/loanId'
+    post:
+      summary: Create a pricing lock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLockRequest'
+      responses:
+        '201':
+          description: Pricing lock created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingLock'
+  /loans/{loanId}/rules/evaluate:
+    parameters:
+      - $ref: '#/components/parameters/loanId'
+    post:
+      summary: Evaluate rules for a loan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RulesEvaluationRequest'
+      responses:
+        '200':
+          description: Rule engine result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RulesEvaluationResult'
+  /loans/{loanId}/aus/run:
+    parameters:
+      - $ref: '#/components/parameters/loanId'
+    post:
+      summary: Execute AUS for a loan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AusRunRequest'
+      responses:
+        '201':
+          description: AUS result persisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AusResult'
+  /loans/{loanId}/credit/pull:
+    parameters:
+      - $ref: '#/components/parameters/loanId'
+    post:
+      summary: Pull a credit report for a loan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditPullRequest'
+      responses:
+        '201':
+          description: Credit report retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditReport'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    loanId:
+      name: loanId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    AuthUser:
+      type: object
+      properties:
+        sub:
+          type: string
+        tenantId:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    Loan:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        borrowerName:
+          type: string
+        amount:
+          type: number
+        status:
+          type: string
+          enum: [draft, submitted, locked]
+        pricingLockId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateLoanRequest:
+      type: object
+      required: [borrowerName, amount]
+      properties:
+        borrowerName:
+          type: string
+        amount:
+          type: number
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        loanId:
+          type: string
+        name:
+          type: string
+        contentType:
+          type: string
+        version:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    UploadDocumentRequest:
+      type: object
+      required: [name, contentType, content]
+      properties:
+        name:
+          type: string
+        contentType:
+          type: string
+        content:
+          type: string
+          format: byte
+    CreateLockRequest:
+      type: object
+      required: [rate, durationMinutes]
+      properties:
+        rate:
+          type: number
+        durationMinutes:
+          type: integer
+    PricingLock:
+      type: object
+      properties:
+        id:
+          type: string
+        loanId:
+          type: string
+        tenantId:
+          type: string
+        rate:
+          type: number
+        expiresAt:
+          type: string
+          format: date-time
+    RulesEvaluationRequest:
+      type: object
+      required: [trigger]
+      properties:
+        trigger:
+          type: string
+    RulesEvaluationResult:
+      type: object
+      properties:
+        trigger:
+          type: string
+        findings:
+          type: array
+          items:
+            type: string
+        passed:
+          type: boolean
+    AusRunRequest:
+      type: object
+      required: [engine]
+      properties:
+        engine:
+          type: string
+    AusResult:
+      type: object
+      properties:
+        id:
+          type: string
+        loanId:
+          type: string
+        tenantId:
+          type: string
+        engine:
+          type: string
+        decision:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    CreditPullRequest:
+      type: object
+      required: [bureau]
+      properties:
+        bureau:
+          type: string
+    CreditReport:
+      type: object
+      properties:
+        id:
+          type: string
+        loanId:
+          type: string
+        tenantId:
+          type: string
+        bureau:
+          type: string
+        score:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
