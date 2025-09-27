@@ -6,6 +6,12 @@ import {
   mapFromAdapterResponse,
   mapToAdapterPayload,
 } from './mappers';
+import {
+  getVaultSecretPlaceholder,
+  handleWithIdempotency,
+  IdempotencyCache,
+  withRetries,
+} from '@haizel/connectors-shared';
 
 export interface AUSAdapter {
   submit(payload: AUSAdapterPayload): Promise<AUSAdapterResponse>;
@@ -17,6 +23,7 @@ class MockAUSAdapter implements AUSAdapter {
       return {
         decisionCode: 'MANUAL',
         reasons: ['Credit score below automated threshold'],
+        receivedAt: new Date().toISOString(),
       };
     }
 
@@ -24,22 +31,43 @@ class MockAUSAdapter implements AUSAdapter {
       return {
         decisionCode: 'REFER',
         reasons: ['High DTI or LTV'],
+        receivedAt: new Date().toISOString(),
       };
     }
 
     return {
       decisionCode: 'APPROVED',
       reasons: [],
+      receivedAt: new Date().toISOString(),
     };
   }
 }
 
 export class AUSGatewayService {
+  private readonly decisions = new Map<string, AUSDecision>();
+
+  private readonly idempotencyCache = new IdempotencyCache();
+
+  private readonly config = {
+    endpoint: process.env.AUS_API_URL ?? 'https://mock-aus.local',
+    apiKey: getVaultSecretPlaceholder('secret/data/connectors/aus', 'AUS_API_KEY'),
+  };
+
   constructor(private readonly adapter: AUSAdapter = new MockAUSAdapter()) {}
 
-  async submitCase(request: AUSSubmissionRequest): Promise<AUSDecision> {
+  async submitCase(request: AUSSubmissionRequest, idempotencyKey?: string): Promise<AUSDecision> {
     const payload = mapToAdapterPayload(request);
-    const response = await this.adapter.submit(payload);
-    return mapFromAdapterResponse(request, response);
+    const result = await handleWithIdempotency(idempotencyKey, this.idempotencyCache, async () => {
+      const response = await withRetries(() => this.adapter.submit(payload));
+      const mapped = mapFromAdapterResponse(request, response);
+      this.decisions.set(mapped.loanId, mapped);
+      return { status: 200, body: mapped };
+    });
+
+    return result.body as AUSDecision;
+  }
+
+  getDecision(loanId: string): AUSDecision | undefined {
+    return this.decisions.get(loanId);
   }
 }
