@@ -1,9 +1,129 @@
-name: Placeholder workflow
+name: Rules Engine CI
 
-on: [push]
+on:
+  push:
+    paths:
+      - 'apps/rules-engine/**'
+      - 'libs/**'
+      - 'infra/**'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/ci-rules.yml'
+  pull_request:
+    paths:
+      - 'apps/rules-engine/**'
+      - 'libs/**'
+      - 'infra/**'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/ci-rules.yml'
+
+concurrency:
+  group: ci-rules-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  quality:
+    name: Tests and type checks
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Workflow $f placeholder"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f apps/rules-engine/requirements-dev.txt ]; then
+            pip install -r apps/rules-engine/requirements-dev.txt
+          elif [ -f apps/rules-engine/requirements.txt ]; then
+            pip install -r apps/rules-engine/requirements.txt
+          elif [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "Falling back to installing pytest and mypy."
+            pip install pytest mypy
+          fi
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          mkdir -p reports
+          pytest apps/rules-engine/tests --maxfail=1 -vv --junitxml=reports/unit-tests.xml
+
+      - name: Run regression suite
+        run: |
+          set -o pipefail
+          mkdir -p reports
+          pytest apps/rules-engine/tests -k regression -vv --junitxml=reports/regression-tests.xml
+
+      - name: Run MyPy
+        run: |
+          if [ -f mypy.ini ] || [ -f setup.cfg ] || [ -f apps/rules-engine/mypy.ini ]; then
+            mypy apps/rules-engine
+          else
+            mypy apps/rules-engine || true
+          fi
+
+      - name: Upload test reports
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules-engine-pytests
+          path: reports
+          if-no-files-found: warn
+
+  docker-image:
+    name: Build container image
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-rules-engine-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-rules-engine-buildx-
+
+      - name: Build rules engine image
+        run: |
+          if [ -f apps/rules-engine/Dockerfile ]; then
+            docker build \
+              --file apps/rules-engine/Dockerfile \
+              --tag rules-engine:${GITHUB_SHA} \
+              apps/rules-engine
+          elif [ -f infra/docker/rules-engine.Dockerfile ]; then
+            docker build \
+              --file infra/docker/rules-engine.Dockerfile \
+              --tag rules-engine:${GITHUB_SHA} \
+              .
+          else
+            echo "No Dockerfile found for the rules engine; skipping build."
+          fi
+
+      - name: Capture Docker metadata
+        if: success() || failure()
+        run: |
+          mkdir -p docker-metadata
+          docker image ls > docker-metadata/rules-engine-images.txt
+
+      - name: Upload Docker metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules-engine-docker-metadata
+          path: docker-metadata/rules-engine-images.txt
+          if-no-files-found: warn

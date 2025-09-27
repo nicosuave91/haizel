@@ -1,9 +1,181 @@
-name: Placeholder workflow
+name: Connectors CI
 
-on: [push]
+on:
+  push:
+    paths:
+      - 'apps/connectors/**'
+      - 'libs/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/ci-connectors.yml'
+  pull_request:
+    paths:
+      - 'apps/connectors/**'
+      - 'libs/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/ci-connectors.yml'
+
+concurrency:
+  group: ci-connectors-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  unit-tests:
+    name: Connector unit tests
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        connector: [aus-gateway, credit, esign, ppe-adapter]
+    env:
+      PNPM_HOME: ~/.pnpm
+      PATH: ${{ env.PNPM_HOME }}:${{ env.PATH }}
     steps:
-      - run: echo "Workflow $f placeholder"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          REPORT_DIR=reports/${{ matrix.connector }}
+          mkdir -p "$REPORT_DIR"
+          LOG_FILE="$REPORT_DIR/unit-tests.log"
+          if pnpm --filter ${{ matrix.connector }}... test 2>&1 | tee "$LOG_FILE"; then
+            echo "Unit tests completed for ${{ matrix.connector }}" | tee -a "$LOG_FILE"
+          elif [ -f apps/connectors/${{ matrix.connector }}/package.json ]; then
+            if pnpm --dir apps/connectors/${{ matrix.connector }} test 2>&1 | tee "$LOG_FILE"; then
+              echo "Unit tests completed for ${{ matrix.connector }}" | tee -a "$LOG_FILE"
+            else
+              echo "Unit tests failed for ${{ matrix.connector }}" | tee -a "$LOG_FILE"
+              exit 1
+            fi
+          else
+            echo "No unit test command found for ${{ matrix.connector }}" | tee "$LOG_FILE"
+          fi
+
+      - name: Upload unit test logs
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connectors-unit-tests-${{ matrix.connector }}
+          path: reports/${{ matrix.connector }}
+          if-no-files-found: warn
+
+  pact-verification:
+    name: Pact verification
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        connector: [aus-gateway, credit, esign, ppe-adapter]
+    env:
+      PNPM_HOME: ~/.pnpm
+      PATH: ${{ env.PNPM_HOME }}:${{ env.PATH }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Verify consumer/provider contracts
+        run: |
+          set -o pipefail
+          REPORT_DIR=pact-reports/${{ matrix.connector }}
+          mkdir -p "$REPORT_DIR"
+          LOG_FILE="$REPORT_DIR/pact.log"
+          if pnpm --filter ${{ matrix.connector }}... run pact:verify 2>&1 | tee "$LOG_FILE"; then
+            echo "Pact verification succeeded for ${{ matrix.connector }}" | tee -a "$LOG_FILE"
+          elif [ -f apps/connectors/${{ matrix.connector }}/package.json ]; then
+            if pnpm --dir apps/connectors/${{ matrix.connector }} run pact:verify 2>&1 | tee "$LOG_FILE"; then
+              echo "Pact verification succeeded for ${{ matrix.connector }}" | tee -a "$LOG_FILE"
+            else
+              echo "Pact verification failed for ${{ matrix.connector }}" | tee -a "$LOG_FILE"
+              exit 1
+            fi
+          else
+            echo "No pact verification command found for ${{ matrix.connector }}" | tee "$LOG_FILE"
+          fi
+
+      - name: Upload Pact logs
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connectors-pact-${{ matrix.connector }}
+          path: pact-reports/${{ matrix.connector }}
+          if-no-files-found: warn
+
+  docker-images:
+    name: Build connector images
+    runs-on: ubuntu-latest
+    needs: pact-verification
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-connectors-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-connectors-buildx-
+
+      - name: Build connector images
+        run: |
+          set -e
+          mkdir -p docker-metadata
+          for connector in apps/connectors/*; do
+            [ -d "$connector" ] || continue
+            name=$(basename "$connector")
+            if [ -f "$connector/Dockerfile" ]; then
+              docker build \
+                --file "$connector/Dockerfile" \
+                --tag "$name:${GITHUB_SHA}" \
+                "$connector"
+            else
+              echo "No Dockerfile for $name; skipping build."
+            fi
+          done
+          docker image ls > docker-metadata/connector-images.txt
+
+      - name: Upload Docker metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: connectors-docker-metadata
+          path: docker-metadata/connector-images.txt
+          if-no-files-found: warn
