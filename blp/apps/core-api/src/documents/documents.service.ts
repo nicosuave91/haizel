@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../common/prisma.service';
 import { EventsProducerService } from '../events/producer.service';
 import { RequestContext } from '../common/interfaces';
+import { OpaService } from '../opa/opa.service';
 
 interface UploadDocumentDto {
   name: string;
@@ -23,9 +24,15 @@ export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventsProducerService,
+    private readonly opa: OpaService,
   ) {}
 
   async upload(context: RequestContext, loanId: string, dto: UploadDocumentDto) {
+    await this.opa.authorize(context.user, {
+      action: 'document:upload',
+      resourceTenant: context.tenantId,
+    });
+
     const loan = await this.prisma.loan.findUnique({
       where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
     });
@@ -61,6 +68,11 @@ export class DocumentsService {
   }
 
   async list(context: RequestContext, loanId: string) {
+    await this.opa.authorize(context.user, {
+      action: 'document:list',
+      resourceTenant: context.tenantId,
+    });
+
     const loan = await this.prisma.loan.findUnique({
       where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
     });
