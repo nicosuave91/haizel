@@ -7,6 +7,7 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "test:rls": "bash db/tests/run_rls_checks.sh",
     "dev": "docker compose -f infra/docker-compose.dev.yml up --build"
   }
 }
