@@ -78,10 +78,19 @@ describe('AUS Gateway Pact', () => {
         .send({ loanId: 'loan-1', borrowerId: 'borrower-1', dti: 0.35, ltv: 0.8, creditScore: 720 });
 
       expect(submission.status).toBe(200);
+      expect(submission.body).toMatchObject({
+        loanId: 'loan-1',
+        borrowerId: 'borrower-1',
+      });
+      expect(submission.body.result).toBeDefined();
+      expect(Array.isArray(submission.body.reasons)).toBe(true);
 
       const result = await request(baseUrl).get('/api/v1/aus/results/loan-1');
       expect(result.status).toBe(200);
-      expect(result.body.loanId).toBe('loan-1');
+      expect(result.body).toMatchObject({
+        loanId: 'loan-1',
+        borrowerId: 'borrower-1',
+      });
 
       await provider.verify();
     } finally {
