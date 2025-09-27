@@ -1,0 +1,1 @@
+-- Placeholder seed data for retention policies, holidays, and reference categories.
