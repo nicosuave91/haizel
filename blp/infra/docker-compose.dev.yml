@@ -1,5 +1,24 @@
 version: '3.9'
 
+x-node-service: &node-service
+  image: node:20
+  working_dir: /workspace
+  volumes:
+    - ..:/workspace
+  environment: &node-env
+    NODE_ENV: development
+    DATABASE_URL: postgresql://blp:blp@postgres:5432/blp
+    REDIS_URL: redis://redis:6379/0
+    KAFKA_BROKERS: redpanda:9092
+    TEMPORAL_ADDRESS: temporal:7233
+    TEMPORAL_NAMESPACE: default
+    OPA_URL: http://opa:8181
+    MINIO_ENDPOINT: http://minio:9000
+    MINIO_ROOT_USER: blp
+    MINIO_ROOT_PASSWORD: blpsecret
+    CLAMAV_HOST: clamav
+    CLAMAV_PORT: '3310'
+
 services:
   postgres:
     image: postgres:15
@@ -11,6 +30,60 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U blp']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-migrate:
+    image: postgres:15
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: blp
+      POSTGRES_PASSWORD: blp
+      POSTGRES_DB: blp
+    volumes:
+      - ../db/migrations:/migrations:ro
+      - ../db/seed:/seed:ro
+    command: >-
+      bash -lc "
+      set -euo pipefail;
+      shopt -s nullglob;
+      export PGPASSWORD=$${POSTGRES_PASSWORD};
+      until pg_isready --host=postgres --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB}; do sleep 1; done;
+      psql --set ON_ERROR_STOP=1 --host=postgres --username=$${POSTGRES_USER} --dbname=postgres <<'SQL'
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'temporal') THEN
+          CREATE ROLE temporal WITH LOGIN PASSWORD 'temporal';
+        END IF;
+      END$$;
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'temporal') THEN
+          CREATE DATABASE temporal OWNER temporal;
+        END IF;
+      END$$;
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'temporal_visibility') THEN
+          CREATE DATABASE temporal_visibility OWNER temporal;
+        END IF;
+      END$$;
+      SQL
+      for file in /migrations/*.sql; do
+        echo "Running migration $$file";
+        psql --set ON_ERROR_STOP=1 --host=postgres --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB} --file="$$file";
+      done;
+      for file in /seed/*.sql; do
+        echo "Seeding $$file";
+        psql --set ON_ERROR_STOP=1 --host=postgres --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB} --file="$$file";
+      done;
+      "
+    restart: 'no'
 
   redis:
     image: redis:7
@@ -44,11 +117,16 @@ services:
     environment:
       - DB=postgresql
       - DB_PORT=5432
+      - DBNAME=temporal
+      - DBNAME_VISIBILITY=temporal_visibility
       - POSTGRES_USER=temporal
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=postgres
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      postgres-migrate:
+        condition: service_completed_successfully
     ports:
       - '7233:7233'
 
@@ -59,7 +137,8 @@ services:
     ports:
       - '8080:8080'
     depends_on:
-      - temporal
+      temporal:
+        condition: service_started
 
   opa:
     image: openpolicyagent/opa:0.59.0
@@ -67,7 +146,7 @@ services:
     ports:
       - '8181:8181'
     volumes:
-      - ./../apps/policy-bundle/dist:/policy
+      - ../apps/policy-bundle/dist:/policy
 
   minio:
     image: minio/minio:RELEASE.2023-09-07T02-05-02Z
@@ -86,66 +165,124 @@ services:
     ports:
       - '3310:3310'
 
-  connectors-ppe:
-    image: node:20
-    working_dir: /app
-    command: bash -lc "corepack enable && pnpm install && pnpm --filter ppe-adapter dev"
-    volumes:
-      - ..:/app
-    environment:
-      - PORT=3001
+  core-api:
+    <<: *node-service
+    command: >-
+      bash -lc "corepack enable && pnpm --filter core-api exec ts-node --transpile-only src/main.ts"
     ports:
-      - '3001:3001'
+      - '3000:3000'
+    environment:
+      <<: *node-env
+      AUTH0_AUDIENCE: https://core-api.test
+      AUTH0_ISSUER: https://auth0.local/
+      AUTH0_SECRET: local-dev-secret
+      DOCUMENT_BUCKET: local-documents
     depends_on:
-      - postgres
-      - redis
-
-  connectors-credit:
-    image: node:20
-    working_dir: /app
-    command: bash -lc "corepack enable && pnpm install && pnpm --filter credit dev"
-    volumes:
-      - ..:/app
-    environment:
-      - PORT=3002
-    ports:
-      - '3002:3002'
-
-  connectors-aus:
-    image: node:20
-    working_dir: /app
-    command: bash -lc "corepack enable && pnpm install && pnpm --filter aus-gateway dev"
-    volumes:
-      - ..:/app
-    environment:
-      - PORT=3003
-    ports:
-      - '3003:3003'
-
-  connectors-esign:
-    image: node:20
-    working_dir: /app
-    command: bash -lc "corepack enable && pnpm install && pnpm --filter esign dev"
-    volumes:
-      - ..:/app
-    environment:
-      - PORT=3004
-    ports:
-      - '3004:3004'
+      postgres-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      temporal:
+        condition: service_started
+      opa:
+        condition: service_started
+      minio:
+        condition: service_started
+      clamav:
+        condition: service_started
 
   worker:
-    image: node:20
-    working_dir: /app
-    command: bash -lc "corepack enable && pnpm install && pnpm --filter worker dev"
-    volumes:
-      - ..:/app
+    <<: *node-service
+    command: >-
+      bash -lc "corepack enable && pnpm --filter worker exec ts-node --transpile-only src/index.ts"
     environment:
-      TEMPORAL_ADDRESS: temporal:7233
+      <<: *node-env
       TEMPORAL_TASK_QUEUE: blp.default
     depends_on:
-      - temporal
-      - redis
-      - postgres
+      temporal:
+        condition: service_started
+      postgres-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  connectors-ppe:
+    <<: *node-service
+    command: >-
+      bash -lc "corepack enable && pnpm --filter ppe-adapter dev"
+    ports:
+      - '3001:3001'
+    environment:
+      <<: *node-env
+      PORT: '3001'
+    depends_on:
+      core-api:
+        condition: service_started
+      postgres-migrate:
+        condition: service_completed_successfully
+
+  connectors-credit:
+    <<: *node-service
+    command: >-
+      bash -lc "corepack enable && pnpm --filter credit dev"
+    ports:
+      - '3002:3002'
+    environment:
+      <<: *node-env
+      PORT: '3002'
+    depends_on:
+      core-api:
+        condition: service_started
+      postgres-migrate:
+        condition: service_completed_successfully
+
+  connectors-aus:
+    <<: *node-service
+    command: >-
+      bash -lc "corepack enable && pnpm --filter aus-gateway dev"
+    ports:
+      - '3003:3003'
+    environment:
+      <<: *node-env
+      PORT: '3003'
+    depends_on:
+      core-api:
+        condition: service_started
+      postgres-migrate:
+        condition: service_completed_successfully
+
+  connectors-esign:
+    <<: *node-service
+    command: >-
+      bash -lc "corepack enable && pnpm --filter esign dev"
+    ports:
+      - '3004:3004'
+    environment:
+      <<: *node-env
+      PORT: '3004'
+    depends_on:
+      core-api:
+        condition: service_started
+      postgres-migrate:
+        condition: service_completed_successfully
+
+  rules-engine:
+    image: python:3.11-slim
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    environment:
+      PYTHONPATH: /workspace/apps/rules-engine
+      DEBUG: '1'
+    command: >-
+      bash -lc "pip install --no-cache-dir -r apps/rules-engine/requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - '8000:8000'
+    depends_on:
+      redis:
+        condition: service_started
+      postgres-migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:
