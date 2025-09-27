@@ -7,6 +7,8 @@ import base64
 import hashlib
 import hmac
 import json
+import shutil
+import subprocess
 import tarfile
 from pathlib import Path
 from typing import Iterable
@@ -19,7 +21,10 @@ DEFAULT_OUTPUT = ROOT / "dist"
 def iter_policy_files() -> Iterable[Path]:
   """Yield every Rego policy in the source tree."""
 
-  return SRC.glob("**/*.rego")
+  for path in SRC.glob("**/*.rego"):
+    if "tests" in path.parts:
+      continue
+    yield path
 
 
 def create_bundle(output_dir: Path, version: str) -> Path:
@@ -48,6 +53,33 @@ def create_bundle(output_dir: Path, version: str) -> Path:
   return bundle_path
 
 
+def compute_sha256(bundle_path: Path) -> str:
+  digest = hashlib.sha256()
+  digest.update(bundle_path.read_bytes())
+  return digest.hexdigest()
+
+
+def write_checksum(bundle_path: Path, checksum: str) -> Path:
+  checksum_path = bundle_path.with_name(bundle_path.name + ".sha256")
+  checksum_path.write_text(f"{checksum}  {bundle_path.name}\n", encoding="utf-8")
+  return checksum_path
+
+
+def write_metadata(bundle_path: Path, version: str, checksum: str, signed: bool) -> Path:
+  metadata = {
+    "version": version,
+    "bundle": bundle_path.name,
+    "checksum": {
+      "algorithm": "sha256",
+      "value": checksum,
+    },
+    "signed": signed,
+  }
+  metadata_path = bundle_path.with_name(bundle_path.name + ".json")
+  metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+  return metadata_path
+
+
 def _bytes_reader(data: bytes):
   from io import BytesIO
 
@@ -65,13 +97,43 @@ def sign_bundle(bundle_path: Path, signing_key: str) -> Path:
   return sig_path
 
 
-def build(output: Path, version: str, signing_key: str | None) -> None:
+def run_tests() -> None:
+  """Execute the policy unit tests before bundling."""
+
+  if shutil.which("opa") is None:
+    raise SystemExit(
+      "opa executable not found in PATH; install OPA to run tests or rerun with --skip-tests"
+    )
+
+  subprocess.run(["opa", "test", str(SRC)], check=True)
+
+
+def build(output: Path, version: str, signing_key: str | None, skip_tests: bool) -> None:
   """Create and optionally sign the policy bundle."""
 
+  if not skip_tests:
+    run_tests()
+
   bundle_path = create_bundle(output, version)
+  checksum = compute_sha256(bundle_path)
+  checksum_path = write_checksum(bundle_path, checksum)
+  metadata_path = write_metadata(bundle_path, version, checksum, bool(signing_key))
+
+  signature_path = None
   if signing_key:
-    sign_bundle(bundle_path, signing_key)
-  print(json.dumps({"bundle": str(bundle_path), "signed": bool(signing_key)}))
+    signature_path = sign_bundle(bundle_path, signing_key)
+
+  print(
+    json.dumps(
+      {
+        "bundle": str(bundle_path),
+        "checksum": str(checksum_path),
+        "metadata": str(metadata_path),
+        "signed": bool(signing_key),
+        "signature": str(signature_path) if signature_path else None,
+      }
+    )
+  )
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,9 +141,10 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
   parser.add_argument("--version", default="dev")
   parser.add_argument("--signing-key", dest="signing_key")
+  parser.add_argument("--skip-tests", action="store_true", help="skip running opa test before bundling")
   return parser.parse_args()
 
 
 if __name__ == "__main__":
   args = parse_args()
-  build(args.output, args.version, args.signing_key)
+  build(args.output, args.version, args.signing_key, args.skip_tests)
