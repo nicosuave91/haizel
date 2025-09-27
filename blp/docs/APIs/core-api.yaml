@@ -339,3 +339,39 @@ components:
         createdAt:
           type: string
           format: date-time
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+          description: Human-readable error message or collection of messages.
+        details:
+          type: object
+          additionalProperties: true
+          description: Optional additional data about the error.
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [message]
+          properties:
+            message:
+              type: array
+              items:
+                type: string
+              description: One or more validation error messages.
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+              description: Field-specific validation messages keyed by field name.
