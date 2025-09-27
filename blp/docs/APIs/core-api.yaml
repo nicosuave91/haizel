@@ -9,7 +9,9 @@ security:
 paths:
   /health:
     get:
+      tags: [Health]
       summary: Liveness/readiness probe
+      description: Returns a simple payload that signals the API is ready to accept traffic.
       security: []
       responses:
         '200':
@@ -21,18 +23,39 @@ paths:
                 properties:
                   status:
                     type: string
+                    example: ok
   /auth/me:
     get:
+      tags: [Auth]
       summary: Retrieve the authenticated subject profile
       responses:
         '200':
-          description: Authenticated principal
+          description: Authenticated principal and tenant binding derived from the JWT.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/public-key:
+    get:
+      tags: [Auth]
+      summary: Retrieve signing metadata for JWT validation.
+      security: []
+      responses:
+        '200':
+          description: Algorithm metadata for downstream services.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  algorithm:
+                    type: string
+                    example: HS256
   /loans:
     get:
+      tags: [Loans]
       summary: List loans for the tenant
       responses:
         '200':
@@ -43,7 +66,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Loan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
+      tags: [Loans]
       summary: Create a loan
       requestBody:
         required: true
@@ -58,10 +86,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Loan'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /loans/{loanId}:
     parameters:
       - $ref: '#/components/parameters/loanId'
     get:
+      tags: [Loans]
       summary: Retrieve a single loan
       responses:
         '200':
@@ -70,10 +105,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Loan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /loans/{loanId}/documents:
     parameters:
       - $ref: '#/components/parameters/loanId'
     get:
+      tags: [Documents]
       summary: List documents attached to a loan
       responses:
         '200':
@@ -84,7 +126,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
+      tags: [Documents]
       summary: Upload a document to a loan
       requestBody:
         required: true
@@ -99,10 +148,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /loans/{loanId}/pricing/lock:
     parameters:
       - $ref: '#/components/parameters/loanId'
     post:
+      tags: [Pricing]
       summary: Create a pricing lock
       requestBody:
         required: true
@@ -117,10 +175,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PricingLock'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /loans/{loanId}/rules/evaluate:
     parameters:
       - $ref: '#/components/parameters/loanId'
     post:
+      tags: [Rules]
       summary: Evaluate rules for a loan
       requestBody:
         required: true
@@ -135,10 +202,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RulesEvaluationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /loans/{loanId}/aus/run:
     parameters:
       - $ref: '#/components/parameters/loanId'
     post:
+      tags: [AUS]
       summary: Execute AUS for a loan
       requestBody:
         required: true
@@ -153,10 +229,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AusResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /loans/{loanId}/credit/pull:
     parameters:
       - $ref: '#/components/parameters/loanId'
     post:
+      tags: [Credit]
       summary: Pull a credit report for a loan
       requestBody:
         required: true
@@ -171,12 +256,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreditReport'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: Authentication is required or token validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: Missing Bearer token
+              value:
+                statusCode: 401
+                message: Missing Authorization header
+                error: Unauthorized
+    Forbidden:
+      description: Tenant binding mismatch or insufficient permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingPermission:
+              summary: Missing permission
+              value:
+                statusCode: 403
+                message: Missing permission for loan:list
+                error: Forbidden
+    NotFound:
+      description: Requested resource was not found for the tenant scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Payload failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
   parameters:
     loanId:
       name: loanId
@@ -196,6 +328,24 @@ components:
           type: array
           items:
             type: string
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        error:
+          type: string
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            message:
+              type: array
+              items:
+                type: string
     Loan:
       type: object
       properties:
