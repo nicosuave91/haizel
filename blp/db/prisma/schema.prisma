@@ -135,6 +135,7 @@ model TenantUser {
   auditEvents AuditEvent[]
 
   @@id([tenantId, userId])
+  @@index([userId], map: "idx_tenant_users_user_id")
   @@map("tenant_users")
 }
 
@@ -183,8 +184,8 @@ model Loan {
 
   @@unique([tenantId, loanNumber])
   @@unique([tenantId, id])
-  @@index([tenantId, status], name: "idx_loans_tenant_status")
-  @@index([primaryBorrowerId], name: "idx_loans_primary_borrower")
+  @@index([tenantId, status], map: "idx_loans_tenant_status")
+  @@index([primaryBorrowerId], map: "idx_loans_primary_borrower")
   @@map("loans")
 }
 
@@ -245,8 +246,8 @@ model LoanDocument {
   uploadedBy         TenantUser?   @relation("DocumentUploader", fields: [tenantId, uploadedByUserId], references: [tenantId, userId])
 
   @@unique([tenantId, id])
-  @@index([loanId], name: "idx_loan_documents_loan_id")
-  @@index([status], name: "idx_loan_documents_status")
+  @@index([loanId], map: "idx_loan_documents_loan_id")
+  @@index([status], map: "idx_loan_documents_status")
   @@map("loan_documents")
 }
 
@@ -268,8 +269,8 @@ model LoanTask {
   assignedTo       TenantUser?  @relation(fields: [tenantId, assignedToUserId], references: [tenantId, userId])
 
   @@unique([tenantId, id])
-  @@index([status], name: "idx_loan_tasks_status")
-  @@index([dueDate], name: "idx_loan_tasks_due_date")
+  @@index([status], map: "idx_loan_tasks_status")
+  @@index([dueDate], map: "idx_loan_tasks_due_date")
   @@map("loan_tasks")
 }
 
@@ -306,7 +307,7 @@ model RuleSet {
 
   @@unique([tenantId, code])
   @@unique([tenantId, id])
-  @@index([tenantId, triggerEvent, isActive], name: "idx_rule_sets_event_active")
+  @@index([tenantId, triggerEvent, isActive], map: "idx_rule_sets_event_active")
   @@map("rule_sets")
 }
 
@@ -332,8 +333,8 @@ model RuleDefinition {
 
   @@unique([tenantId, ruleSetId, name])
   @@unique([tenantId, id])
-  @@index([ruleSetId, priority], name: "idx_rule_definitions_priority")
-  @@index([tenantId, triggerEvent], name: "idx_rule_definitions_trigger_event")
+  @@index([ruleSetId, priority], map: "idx_rule_definitions_priority")
+  @@index([tenantId, triggerEvent], map: "idx_rule_definitions_trigger_event")
   @@map("rule_definitions")
 }
 
@@ -389,7 +390,7 @@ model RetentionPolicy {
 
   @@unique([tenantId, name])
   @@unique([tenantId, id])
-  @@index([tenantId, categoryCode], name: "idx_retention_policies_category")
+  @@index([tenantId, categoryCode], map: "idx_retention_policies_category")
   @@map("retention_policies")
 }
 
@@ -404,6 +405,7 @@ model RetentionPolicyAssignment {
   policy             RetentionPolicy @relation(fields: [tenantId, policyId], references: [tenantId, id], onDelete: Cascade)
 
   @@unique([tenantId, resourceType, resourceIdentifier])
+  @@index([policyId], map: "idx_retention_policy_assignments_policy")
   @@map("retention_policy_assignments")
 }
 
@@ -423,6 +425,7 @@ model DataRetentionExemption {
   grantedBy          TenantUser?   @relation(fields: [tenantId, grantedByUserId], references: [tenantId, userId], onDelete: SetNull)
 
   @@unique([tenantId, resourceType, resourceIdentifier])
+  @@index([tenantId, resourceType, resourceIdentifier], map: "idx_data_retention_exemptions_resource")
   @@map("data_retention_exemptions")
 }
 
@@ -455,7 +458,7 @@ model Holiday {
   calendar    HolidayCalendar @relation(fields: [tenantId, calendarId], references: [tenantId, id], onDelete: Cascade)
 
   @@unique([calendarId, holidayDate, label])
-  @@index([tenantId, holidayDate], name: "idx_holidays_date")
+  @@index([tenantId, holidayDate], map: "idx_holidays_date")
   @@map("holidays")
 }
 
@@ -475,7 +478,7 @@ model AuditEvent {
   tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   actor            TenantUser? @relation(fields: [tenantId, actorId], references: [tenantId, userId], onDelete: SetNull)
 
-  @@index([tenantId, entityType, entityId], name: "idx_audit_events_entity")
-  @@index([tenantId, requestId], name: "idx_audit_events_request")
+  @@index([tenantId, entityType, entityId], map: "idx_audit_events_entity")
+  @@index([tenantId, requestId], map: "idx_audit_events_request")
   @@map("audit_events")
 }
