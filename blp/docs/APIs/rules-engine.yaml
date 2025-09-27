@@ -2,4 +2,428 @@ openapi: 3.0.3
 info:
   title: BLP Rules Engine
   version: 0.1.0
-paths: {}
+paths:
+  /rules:
+    get:
+      summary: List rules
+      description: Retrieve a summary of all rules stored in the in-memory catalog.
+      responses:
+        '200':
+          description: A list of rules and version metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleListResponse'
+    post:
+      summary: Create rule version
+      description: Create a new rule version or seed a new rule in the catalog.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleCreateRequest'
+      responses:
+        '201':
+          description: The created rule version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleVersionResponse'
+  /rules/{stable_id}:
+    get:
+      summary: Fetch rule version
+      description: Fetch a specific rule version or derive the latest version when none is provided.
+      parameters:
+        - in: path
+          name: stable_id
+          required: true
+          schema:
+            type: string
+          description: Stable rule identifier.
+        - in: query
+          name: version
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Concrete version to retrieve. When omitted the published version is returned if available.
+        - in: query
+          name: prefer_latest
+          required: false
+          schema:
+            type: boolean
+          description: When true return the latest draft even if a published version exists.
+      responses:
+        '200':
+          description: Rule version payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleVersionResponse'
+        '404':
+          description: Rule or version not found.
+  /rules/{stable_id}/publish:
+    post:
+      summary: Publish rule version
+      description: Promote a rule version to the published channel.
+      parameters:
+        - in: path
+          name: stable_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RulePublishRequest'
+      responses:
+        '200':
+          description: Published rule metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleVersionResponse'
+        '404':
+          description: Rule or version not found.
+  /rules/{stable_id}/regressions:
+    put:
+      summary: Upsert regression catalog
+      description: Replace regression fixtures tracked for a particular rule version.
+      parameters:
+        - in: path
+          name: stable_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegressionUpsertRequest'
+      responses:
+        '200':
+          description: Updated rule metadata with regression fixtures.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleVersionResponse'
+        '404':
+          description: Rule or version not found.
+  /eval:
+    post:
+      summary: Evaluate rule
+      description: Evaluate a rule definition, returning the result and explainability trace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationRequest'
+      responses:
+        '200':
+          description: Evaluation result and trace payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationResponse'
+        '400':
+          description: Invalid rule expression.
+        '404':
+          description: Rule or version not found when referencing the catalog.
+  /eval/regressions:
+    post:
+      summary: Run regression suite
+      description: Execute stored or ad-hoc regression cases for a rule definition.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegressionRunRequest'
+      responses:
+        '200':
+          description: Regression execution summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegressionRunResponse'
+        '400':
+          description: Invalid payload or no regression cases available.
+        '404':
+          description: Rule or version not found.
+components:
+  schemas:
+    RuleCreateRequest:
+      type: object
+      required:
+        - stable_id
+        - name
+        - definition
+      properties:
+        stable_id:
+          type: string
+          description: Stable identifier for the rule.
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        definition:
+          type: object
+          additionalProperties: true
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        revision_notes:
+          type: string
+          nullable: true
+        regression_tests:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegressionCase'
+    RulePublishRequest:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+          nullable: true
+    RegressionUpsertRequest:
+      type: object
+      required:
+        - version
+        - cases
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        cases:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegressionCase'
+    RuleSummary:
+      type: object
+      properties:
+        stable_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        latest_version:
+          type: integer
+        published_version:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          description: Status of the latest rule version (draft or published).
+    RuleVersion:
+      type: object
+      properties:
+        stable_id:
+          type: string
+        version:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        definition:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        revision_notes:
+          type: string
+          nullable: true
+        regression_tests:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegressionCase'
+    RuleVersionResponse:
+      type: object
+      properties:
+        rule:
+          $ref: '#/components/schemas/RuleVersion'
+    RuleListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleSummary'
+    RegressionCase:
+      type: object
+      required:
+        - name
+        - context
+        - expected
+      properties:
+        name:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+        expected:
+          description: Expected evaluation result.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: object
+            - type: array
+        description:
+          type: string
+          nullable: true
+    TraceStep:
+      type: object
+      properties:
+        path:
+          type: string
+        operator:
+          type: string
+        result:
+          description: Result yielded by the operator at this step.
+        arguments:
+          description: Evaluated arguments for this operator.
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceStep'
+    EvaluationRequest:
+      type: object
+      properties:
+        stable_id:
+          type: string
+          description: Optional reference to a stored rule.
+        version:
+          type: integer
+          minimum: 1
+          nullable: true
+        logic:
+          type: object
+          additionalProperties: true
+          nullable: true
+        context:
+          type: object
+          additionalProperties: true
+        prefer_latest:
+          type: boolean
+          description: When true prefer the latest draft instead of the published version.
+    EvaluationResponse:
+      type: object
+      properties:
+        stable_id:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          nullable: true
+        result:
+          description: Raw evaluation result.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: object
+            - type: array
+        trace:
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceStep'
+    RegressionCaseResult:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        success:
+          type: boolean
+        expected:
+          description: Expected value for the case.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: object
+            - type: array
+        actual:
+          description: Observed result from the evaluator.
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: object
+            - type: array
+        trace:
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceStep'
+    RegressionRunRequest:
+      type: object
+      required:
+        - stable_id
+      properties:
+        stable_id:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          nullable: true
+        cases:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegressionCase'
+        prefer_latest:
+          type: boolean
+    RegressionRunResponse:
+      type: object
+      properties:
+        stable_id:
+          type: string
+        version:
+          type: integer
+        total:
+          type: integer
+        passed:
+          type: integer
+        failed:
+          type: integer
+        cases:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegressionCaseResult'
