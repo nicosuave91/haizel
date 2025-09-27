@@ -113,7 +113,7 @@ describe('Core API integration', () => {
 
     const loanId = loanRes.body.id;
 
-    const docToken = buildToken(config, tenantA, ['loan:read']);
+    const docToken = buildToken(config, tenantA, ['loan:read', 'document:upload', 'document:list']);
     await request(app.getHttpServer())
       .post(`/loans/${loanId}/documents`)
       .set('Authorization', `Bearer ${docToken}`)
