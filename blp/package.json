@@ -17,6 +17,7 @@
     "dev": "docker compose -f infra/docker-compose.dev.yml up --build"
   },
   "devDependencies": {
+    "@types/node": "^20.12.7",
     "dotenv-cli": "^10.0.0",
     "yaml": "^2.5.0"
   }
