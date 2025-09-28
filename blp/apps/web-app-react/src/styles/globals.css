@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --hz-font-sans: "Inter", "system-ui", sans-serif;
+  --hz-font-mono: "JetBrains Mono", monospace;
+
+  --hz-color-primary: hsl(222, 65%, 54%);
+  --hz-color-primary-hover: hsl(222, 65%, 48%);
+  --hz-color-secondary: hsl(252, 68%, 62%);
+  --hz-color-accent: hsl(174, 62%, 45%);
+  --hz-color-danger: hsl(4, 82%, 59%);
+  --hz-color-success: hsl(142, 64%, 44%);
+  --hz-color-warning: hsl(35, 90%, 55%);
+  --hz-color-info: hsl(199, 89%, 48%);
+
+  --hz-neutral-50: hsl(210, 40%, 98%);
+  --hz-neutral-100: hsl(210, 36%, 96%);
+  --hz-neutral-200: hsl(214, 32%, 91%);
+  --hz-neutral-300: hsl(213, 27%, 84%);
+  --hz-neutral-400: hsl(215, 20%, 65%);
+  --hz-neutral-500: hsl(215, 16%, 47%);
+  --hz-neutral-600: hsl(215, 19%, 35%);
+  --hz-neutral-700: hsl(217, 24%, 27%);
+  --hz-neutral-800: hsl(218, 28%, 20%);
+  --hz-neutral-900: hsl(221, 39%, 11%);
+
+  --hz-surface-card: hsl(0, 0%, 100%);
+  --hz-surface-muted: hsl(210, 36%, 96%);
+  --hz-surface-raised: hsl(0, 0%, 100%);
+  --hz-text: hsl(224, 71%, 4%);
+  --hz-text-sub: hsl(220, 8%, 46%);
+  --hz-border: hsl(214, 32%, 91%);
+
+  --hz-radius-xs: 0.375rem;
+  --hz-radius-md: 0.75rem;
+  --hz-radius-xl: 1.25rem;
+
+  --hz-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --hz-shadow-md: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --hz-shadow-lg: 0 20px 45px rgba(15, 23, 42, 0.16);
+}
+
+.dark {
+  --hz-color-primary: hsl(215, 82%, 68%);
+  --hz-color-primary-hover: hsl(215, 82%, 62%);
+  --hz-color-secondary: hsl(275, 78%, 72%);
+  --hz-color-accent: hsl(166, 72%, 57%);
+  --hz-color-danger: hsl(2, 82%, 68%);
+  --hz-color-success: hsl(140, 65%, 58%);
+  --hz-color-warning: hsl(41, 92%, 64%);
+  --hz-color-info: hsl(201, 88%, 60%);
+
+  --hz-neutral-50: hsl(221, 39%, 11%);
+  --hz-neutral-100: hsl(222, 44%, 13%);
+  --hz-neutral-200: hsl(217, 33%, 17%);
+  --hz-neutral-300: hsl(215, 25%, 22%);
+  --hz-neutral-400: hsl(217, 19%, 30%);
+  --hz-neutral-500: hsl(218, 15%, 45%);
+  --hz-neutral-600: hsl(219, 13%, 57%);
+  --hz-neutral-700: hsl(218, 12%, 65%);
+  --hz-neutral-800: hsl(220, 14%, 75%);
+  --hz-neutral-900: hsl(218, 20%, 86%);
+
+  --hz-surface-card: hsl(222, 47%, 8%);
+  --hz-surface-muted: hsl(223, 47%, 6%);
+  --hz-surface-raised: hsl(222, 47%, 10%);
+  --hz-text: hsl(210, 40%, 98%);
+  --hz-text-sub: hsl(214, 30%, 77%);
+  --hz-border: hsla(214, 32%, 91%, 0.2);
+
+  --hz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --hz-shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --hz-shadow-lg: 0 20px 45px rgba(0, 0, 0, 0.48);
+}
+
+body {
+  background-color: var(--hz-surface-muted);
+  color: var(--hz-text);
+}
+
+* {
+  @apply border-hz-border;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--hz-neutral-300);
+  border-radius: var(--hz-radius-xs);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: var(--hz-neutral-500);
+}
