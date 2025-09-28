@@ -24,7 +24,9 @@ jobs:
           cache-dependency-path: blp/pnpm-lock.yaml
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.0
 
       - name: Activate pinned pnpm
         run: |
