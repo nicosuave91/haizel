@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface AssetVerificationProviderRequest {
   consentToken: string;
@@ -47,8 +47,8 @@ export class MockAssetVerificationProvider implements AssetVerificationProvider 
   }
 }
 
-export class AdapterBackedAssetVerificationProvider implements AssetVerificationProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealAssetVerificationProvider implements AssetVerificationProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async verify(ctx: ProviderContext, input: AssetVerificationProviderRequest): Promise<AssetVerificationProviderResponse> {
     if (!input.consentToken) {
@@ -59,25 +59,53 @@ export class AdapterBackedAssetVerificationProvider implements AssetVerification
       throw error;
     }
 
-    const response = await callWithRetry(() => this.httpCall({ ctx, input }), {
-      maxAttempts: ctx.mockMode ? 1 : 4,
-      baseDelayMs: 350,
-    });
+    const { data } = await this.client.call<ExternalAssetRequest, AssetVerificationProviderResponse>(
+      {
+        ctx,
+        vendor: 'assets',
+        operation: 'refresh',
+        idempotencyKey: `assets:refresh:${ctx.loanId}:${input.consentToken}`,
+        request: input,
+        path: '/assets/refresh',
+        redactFields: ['accountNumber', 'routingNumber'],
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          consentToken: payload.consentToken,
+          institutionHints: payload.institutionHints ?? [],
+        }),
+        response: (payload) => normalizeAssetResponse(payload as ExternalAssetResponse),
+        successEvent: {
+          name: 'verification.completed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'assets',
+            accountCount: response.accounts.length,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('Asset provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<AssetVerificationProviderResponse>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<AssetVerificationProviderResponse>;
+interface ExternalAssetRequest {
+  correlationId: string;
+  consentToken: string;
+  institutionHints: string[];
+}
+
+interface ExternalAssetResponse {
+  accounts: AssetVerificationProviderResponse['accounts'];
+  rawVendorResponse?: unknown;
+}
+
+function normalizeAssetResponse(payload: ExternalAssetResponse): AssetVerificationProviderResponse {
+  return {
+    accounts: payload.accounts,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }

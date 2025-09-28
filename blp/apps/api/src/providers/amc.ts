@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface AppraisalOrderRequest {
   dueDate?: string;
@@ -40,29 +40,64 @@ export class MockAppraisalManagementCompanyProvider implements AppraisalManageme
   }
 }
 
-export class AdapterBackedAMCProvider implements AppraisalManagementCompanyProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealAppraisalManagementCompanyProvider implements AppraisalManagementCompanyProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async order(ctx: ProviderContext, request: AppraisalOrderRequest): Promise<AppraisalOrderResponse> {
-    const response = await callWithRetry(() => this.httpCall({ ctx, request }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 500,
-    });
+    const { data } = await this.client.call<ExternalAppraisalOrderRequest, AppraisalOrderResponse>(
+      {
+        ctx,
+        vendor: 'amc',
+        operation: 'order',
+        idempotencyKey: `amc:order:${ctx.loanId}`,
+        request,
+        path: '/orders/appraisal',
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          dueDate: payload.dueDate,
+          contact: payload.contact,
+          rush: payload.rush ?? false,
+        }),
+        response: (payload) => normalizeAppraisalResponse(payload as ExternalAppraisalOrderResponse),
+        successEvent: {
+          name: 'order.status.changed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'amc',
+            orderId: response.orderId,
+            status: response.status,
+            eta: response.eta,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('AMC provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<AppraisalOrderResponse>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<AppraisalOrderResponse>;
+interface ExternalAppraisalOrderRequest {
+  correlationId: string;
+  dueDate?: string;
+  contact: AppraisalOrderRequest['contact'];
+  rush: boolean;
+}
+
+interface ExternalAppraisalOrderResponse {
+  orderId: string;
+  eta: string;
+  status: AppraisalOrderResponse['status'];
+  rawVendorResponse?: unknown;
+}
+
+function normalizeAppraisalResponse(payload: ExternalAppraisalOrderResponse): AppraisalOrderResponse {
+  return {
+    orderId: payload.orderId,
+    eta: payload.eta,
+    status: payload.status,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }

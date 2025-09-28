@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface AUSSubmitRequest {
   system: 'DU' | 'LPA';
@@ -41,29 +41,61 @@ export class MockAutomatedUnderwritingProvider implements AutomatedUnderwritingP
   }
 }
 
-export class AdapterBackedAutomatedUnderwritingProvider implements AutomatedUnderwritingProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealAutomatedUnderwritingProvider implements AutomatedUnderwritingProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async submit(ctx: ProviderContext, request: AUSSubmitRequest): Promise<AUSSubmitResponse> {
-    const response = await callWithRetry(() => this.httpCall({ ctx, request }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 600,
-    });
+    const { data } = await this.client.call<ExternalAusSubmitRequest, AUSSubmitResponse>(
+      {
+        ctx,
+        vendor: 'aus',
+        operation: 'submit',
+        idempotencyKey: `aus:submit:${ctx.loanId}:${request.system}`,
+        request,
+        path: '/aus/submit',
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          system: payload.system,
+          overrideReason: payload.overrideReason,
+          documents: payload.documents ?? [],
+        }),
+        response: (payload) => normalizeAusResponse(payload as ExternalAusSubmitResponse),
+        successEvent: {
+          name: 'aus.findings.available' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'aus',
+            decision: response.decision,
+            conditionCount: response.conditions.length,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('AUS provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<AUSSubmitResponse>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<AUSSubmitResponse>;
+interface ExternalAusSubmitRequest {
+  correlationId: string;
+  system: 'DU' | 'LPA';
+  overrideReason?: string;
+  documents: string[];
+}
+
+interface ExternalAusSubmitResponse {
+  decision: AUSSubmitResponse['decision'];
+  conditions: AUSSubmitResponse['conditions'];
+  rawVendorResponse?: unknown;
+}
+
+function normalizeAusResponse(payload: ExternalAusSubmitResponse): AUSSubmitResponse {
+  return {
+    decision: payload.decision,
+    conditions: payload.conditions,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }

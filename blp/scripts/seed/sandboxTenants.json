@@ -1,0 +1,18 @@
+[
+  {
+    "tenantId": "11111111-1111-1111-1111-111111111111",
+    "name": "Apex Lending",
+    "vendors": {
+      "credit": {
+        "mode": "sandbox",
+        "apiKey": "apex-credit-sandbox",
+        "secret": "sandbox-secret"
+      },
+      "amc": {
+        "mode": "sandbox",
+        "apiKey": "apex-amc-sandbox",
+        "secret": "sandbox-secret"
+      }
+    }
+  }
+]

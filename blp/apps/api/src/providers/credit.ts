@@ -1,4 +1,10 @@
-import { callWithRetry, ProviderContext, VendorCallRecord, VendorError } from './base';
+import {
+  ProviderContext,
+  VendorError,
+  VendorHttpClient,
+  VendorEventName,
+  redactPayload,
+} from './base';
 
 export interface CreditProviderRequest {
   borrower: {
@@ -40,16 +46,6 @@ export class MockCreditProvider implements CreditProvider {
       throw error;
     }
 
-    const record: VendorCallRecord = {
-      id: cryptoRandomId(),
-      request: input,
-      status: 'succeeded',
-      startedAt: new Date().toISOString(),
-      finishedAt: new Date().toISOString(),
-      retryCount: 0,
-    };
-    void record; // would persist to vendor_calls repository
-
     return {
       bureauFiles: {
         equifaxUrl: `https://mock-storage/${ctx.tenantId}/${ctx.loanId}/credit/equifax.pdf`,
@@ -66,8 +62,8 @@ export class MockCreditProvider implements CreditProvider {
   }
 }
 
-export class AdapterBackedCreditProvider implements CreditProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealCreditProvider implements CreditProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async triMerge(ctx: ProviderContext, input: CreditProviderRequest): Promise<CreditProviderResponse> {
     if (!input.consentToken) {
@@ -78,44 +74,71 @@ export class AdapterBackedCreditProvider implements CreditProvider {
       throw error;
     }
 
-    const response = await callWithRetry(() => this.httpCall(serializeRequest(ctx, input)), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 500,
-    });
+    const idempotencyKey = `credit:tri-merge:${ctx.loanId}:${input.consentToken}`;
+    const { data } = await this.client.call<ExternalCreditRequest, CreditProviderResponse>(
+      {
+        ctx,
+        vendor: 'credit',
+        operation: 'triMerge',
+        idempotencyKey,
+        request: input,
+        path: '/credit/tri-merge',
+        redactFields: ['ssn', 'dob'],
+      },
+      {
+        request: (payload) =>
+          serializeRequest(ctx, {
+            ...payload,
+            borrower: {
+              ...payload.borrower,
+              ssn: payload.borrower.ssn,
+            },
+          }),
+        response: (payload): CreditProviderResponse => normalizeResponse(payload as ExternalCreditResponse),
+        successEvent: {
+          name: 'verification.completed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'credit',
+            summary: response.summary,
+          }),
+        },
+        onSuccess: async (_, raw) => {
+          void redactPayload(raw, ['ssn', 'dob']);
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('Credit provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return normalizeResponse(await response.json());
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<unknown>;
+interface ExternalCreditRequest {
+  correlationId: string;
+  borrower: CreditProviderRequest['borrower'];
+  coBorrower?: CreditProviderRequest['borrower'];
+  consentToken: string;
+  options?: CreditProviderRequest['options'];
 }
 
-function serializeRequest(ctx: ProviderContext, input: CreditProviderRequest) {
+interface ExternalCreditResponse {
+  bureauFiles: CreditProviderResponse['bureauFiles'];
+  summary: CreditProviderResponse['summary'];
+  rawVendorResponse: unknown;
+}
+
+function serializeRequest(ctx: ProviderContext, input: ExternalCreditRequest) {
   return {
     correlationId: ctx.correlationId,
     payload: input,
   };
 }
 
-function normalizeResponse(payload: any): CreditProviderResponse {
+function normalizeResponse(payload: ExternalCreditResponse): CreditProviderResponse {
   return {
     bureauFiles: payload.bureauFiles,
     summary: payload.summary,
-    rawVendorResponse: payload,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
   };
-}
-
-function cryptoRandomId(): string {
-  return Math.random().toString(36).slice(2);
 }

@@ -379,17 +379,35 @@ paths:
           required: true
           schema:
             type: string
-            enum: [amc, flood, mi, title]
+            enum: [credit, incomeEmployment, assets, amc, flood, mi, aus, esign, title]
+        - in: header
+          name: X-Signature
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: X-Timestamp
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: X-Nonce
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/VendorWebhookRequest'
       responses:
         '202':
           description: Webhook processed asynchronously.
+        '400':
+          description: Invalid signature or payload.
+        '422':
+          $ref: '#/components/responses/ComplianceFailure'
   /loans/{loanId}/aus/submit:
     post:
       tags: [AUS]
@@ -579,6 +597,45 @@ paths:
                 $ref: '#/components/schemas/CTCEvaluationResponse'
         '422':
           $ref: '#/components/responses/ComplianceFailure'
+  /loans/{loanId}/doc-manifest:
+    get:
+      tags: [Documents]
+      summary: Retrieve the document manifest for a loan
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Manifest status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocManifestResponse'
+  /loans/{loanId}/documents/upload:
+    post:
+      tags: [Documents]
+      summary: Request an upload slot for a manifest document
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+      responses:
+        '201':
+          description: Upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentUploadResponse'
   /loans/{loanId}/close:
     post:
       tags: [Loans]
@@ -637,6 +694,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PipelineReportResponse'
+  /observability/health/vendors:
+    get:
+      tags: [Reporting]
+      summary: Retrieve vendor integration health summary
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+      responses:
+        '200':
+          description: Vendor health statuses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorHealthResponse'
   /compliance/evaluate:
     post:
       tags: [Compliance]
@@ -666,6 +738,28 @@ paths:
                 $ref: '#/components/schemas/ComplianceEvaluateResponse'
         '422':
           $ref: '#/components/responses/ComplianceFailure'
+  /compliance/waivers:
+    post:
+      tags: [Compliance]
+      summary: Create a compliance waiver
+      security:
+        - TenantAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplianceWaiverRequest'
+      responses:
+        '201':
+          description: Waiver created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceWaiverResponse'
 components:
   securitySchemes:
     TenantAuth:
@@ -1254,10 +1348,10 @@ components:
           format: uuid
         stage:
           type: string
-          enum: [PRE_FLIGHT, VERIFICATION, AUS, DISCLOSURES, CTC, CLOSING]
+          enum: [PRE_FLIGHT, PRE_VENDOR_CALL, PRE_DISCLOSURE, AUS, CTC, CLOSING]
     ComplianceEvaluateResponse:
       type: object
-      required: [stage, passed, issues]
+      required: [stage, passed, issues, coverage]
       properties:
         stage:
           type: string
@@ -1267,6 +1361,352 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ComplianceIssue'
+        waiversApplied:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceWaiver'
+        coverage:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceCoverageReport'
+    ComplianceWaiverRequest:
+      type: object
+      required: [loanId, ruleId, stage, reason, scope, expiresAt]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        ruleId:
+          type: string
+        stage:
+          type: string
+        reason:
+          type: string
+        scope:
+          type: string
+          enum: [LOAN, STAGE]
+        expiresAt:
+          type: string
+          format: date-time
+    ComplianceWaiverResponse:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ComplianceWaiver'
+    ComplianceWaiver:
+      type: object
+      required: [id, loanId, ruleId, stage, reason, scope, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        loanId:
+          type: string
+          format: uuid
+        ruleId:
+          type: string
+        stage:
+          type: string
+        reason:
+          type: string
+        scope:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    ComplianceCoverageReport:
+      type: object
+      required: [stage, evaluatedAt, rules]
+      properties:
+        stage:
+          type: string
+        evaluatedAt:
+          type: string
+          format: date-time
+        rules:
+          type: array
+          items:
+            type: object
+            required: [id, version, name, result]
+            properties:
+              id:
+                type: string
+              version:
+                type: integer
+              name:
+                type: string
+              result:
+                type: string
+                enum: [passed, failed, waived]
+              issue:
+                $ref: '#/components/schemas/ComplianceIssue'
+              waiverId:
+                type: string
+    VendorWebhookRequest:
+      oneOf:
+        - $ref: '#/components/schemas/AmcWebhookPayload'
+        - $ref: '#/components/schemas/FloodWebhookPayload'
+        - $ref: '#/components/schemas/MiWebhookPayload'
+        - $ref: '#/components/schemas/TitleWebhookPayload'
+        - $ref: '#/components/schemas/CreditWebhookPayload'
+        - $ref: '#/components/schemas/AssetsWebhookPayload'
+        - $ref: '#/components/schemas/IncomeEmploymentWebhookPayload'
+        - $ref: '#/components/schemas/AusWebhookPayload'
+        - $ref: '#/components/schemas/EsignWebhookPayload'
+    AmcWebhookPayload:
+      type: object
+      required: [loanId, orderId, status]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+        status:
+          type: string
+          enum: [ordered, in_review, delivered]
+        eta:
+          type: string
+          format: date-time
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorDocument'
+    FloodWebhookPayload:
+      type: object
+      required: [loanId, determination, reportUrl]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        determination:
+          type: string
+          enum: [zone_a, zone_x, zone_unknown]
+        reportUrl:
+          type: string
+          format: uri
+        checksum:
+          type: string
+    MiWebhookPayload:
+      type: object
+      required: [loanId, quoteId, premiumCents, status]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        quoteId:
+          type: string
+        premiumCents:
+          type: integer
+        status:
+          type: string
+          enum: [issued, pending, declined]
+    TitleWebhookPayload:
+      type: object
+      required: [loanId, orderId, status]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+        status:
+          type: string
+          enum: [opened, in_curative, clear]
+        curativeTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TitleCurativeTask'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorDocument'
+    CreditWebhookPayload:
+      type: object
+      required: [loanId, vendorCallId, summary, documents]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        vendorCallId:
+          type: string
+        summary:
+          type: object
+          required: [fico, inquiries, tradelines]
+          properties:
+            fico:
+              type: integer
+            inquiries:
+              type: integer
+            tradelines:
+              type: integer
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorDocument'
+    AssetsWebhookPayload:
+      type: object
+      required: [loanId, vendorCallId, accounts]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        vendorCallId:
+          type: string
+        accounts:
+          type: array
+          items:
+            type: object
+            required: [institution, accountType, currentBalanceCents]
+            properties:
+              institution:
+                type: string
+              accountType:
+                type: string
+              currentBalanceCents:
+                type: integer
+              statements:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorDocument'
+    IncomeEmploymentWebhookPayload:
+      type: object
+      required: [loanId, vendorCallId, employmentStatus]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        vendorCallId:
+          type: string
+        employmentStatus:
+          type: string
+          enum: [verified, unable_to_verify, manual_review]
+        incomeStreams:
+          type: array
+          items:
+            type: object
+            required: [employerName, annualIncomeCents]
+            properties:
+              employerName:
+                type: string
+              annualIncomeCents:
+                type: integer
+    AusWebhookPayload:
+      type: object
+      required: [loanId, submissionId, decision]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        submissionId:
+          type: string
+        decision:
+          type: string
+          enum: [APPROVED_ELIGIBLE, REFER_WITH_CAUTION, OUT_OF_SCOPE]
+        findingsUrl:
+          type: string
+          format: uri
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AUSCondition'
+    EsignWebhookPayload:
+      type: object
+      required: [loanId, envelopeId, status]
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        envelopeId:
+          type: string
+        status:
+          type: string
+          enum: [created, sent, completed, declined]
+        completedDocuments:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorDocument'
+    VendorDocument:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+        code:
+          type: string
+        checksum:
+          type: string
+        version:
+          type: integer
+    DocManifestResponse:
+      type: object
+      required: [status, received, required, documents]
+      properties:
+        status:
+          type: string
+          enum: [pending, in_progress, complete]
+        received:
+          type: integer
+        required:
+          type: integer
+        documents:
+          type: array
+          items:
+            type: object
+            required: [code, title, required, received]
+            properties:
+              code:
+                type: string
+              title:
+                type: string
+              required:
+                type: boolean
+              received:
+                type: boolean
+              version:
+                type: integer
+              checksum:
+                type: string
+              redacted:
+                type: boolean
+    DocumentUploadRequest:
+      type: object
+      required: [code, contentType]
+      properties:
+        code:
+          type: string
+        contentType:
+          type: string
+    DocumentUploadResponse:
+      type: object
+      required: [uploadUrl, expiresAt, checksum]
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        checksum:
+          type: string
+    VendorHealthResponse:
+      type: object
+      required: [vendors]
+      properties:
+        vendors:
+          type: array
+          items:
+            type: object
+            required: [vendor, status, lastPingAt]
+            properties:
+              vendor:
+                type: string
+              status:
+                type: string
+                enum: [healthy, degraded, down]
+              lastPingAt:
+                type: string
+                format: date-time
     AuditTrailResponse:
       type: object
       required: [events]

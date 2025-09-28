@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface MortgageInsuranceQuoteRequest {
   coveragePercent: number;
@@ -36,29 +36,63 @@ export class MockMortgageInsuranceProvider implements MortgageInsuranceProvider 
   }
 }
 
-export class AdapterBackedMortgageInsuranceProvider implements MortgageInsuranceProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealMortgageInsuranceProvider implements MortgageInsuranceProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async quote(ctx: ProviderContext, request: MortgageInsuranceQuoteRequest): Promise<MortgageInsuranceQuoteResponse> {
-    const response = await callWithRetry(() => this.httpCall({ ctx, request }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 450,
-    });
+    const { data } = await this.client.call<ExternalMiQuoteRequest, MortgageInsuranceQuoteResponse>(
+      {
+        ctx,
+        vendor: 'mi',
+        operation: 'quote',
+        idempotencyKey: `mi:quote:${ctx.loanId}:${request.productCode}`,
+        request,
+        path: '/mi/quotes',
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          coveragePercent: payload.coveragePercent,
+          amortizationTermMonths: payload.amortizationTermMonths,
+          productCode: payload.productCode,
+        }),
+        response: (payload) => normalizeMiResponse(payload as ExternalMiQuoteResponse),
+        successEvent: {
+          name: 'verification.completed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'mi',
+            quoteId: response.quoteId,
+            premiumCents: response.premiumCents,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('MI provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<MortgageInsuranceQuoteResponse>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<MortgageInsuranceQuoteResponse>;
+interface ExternalMiQuoteRequest {
+  correlationId: string;
+  coveragePercent: number;
+  amortizationTermMonths: number;
+  productCode: string;
+}
+
+interface ExternalMiQuoteResponse {
+  quoteId: string;
+  premiumCents: number;
+  rateBps: number;
+  rawVendorResponse?: unknown;
+}
+
+function normalizeMiResponse(payload: ExternalMiQuoteResponse): MortgageInsuranceQuoteResponse {
+  return {
+    quoteId: payload.quoteId,
+    premiumCents: payload.premiumCents,
+    rateBps: payload.rateBps,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }

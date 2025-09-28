@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface ESignGenerateRequest {
   templateCode: string;
@@ -49,47 +49,100 @@ export class MockESignProvider implements ESignProvider {
   }
 }
 
-export class AdapterBackedESignProvider implements ESignProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealESignProvider implements ESignProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async generate(ctx: ProviderContext, request: ESignGenerateRequest): Promise<ESignEnvelope> {
-    const response = await callWithRetry(() => this.httpCall({ ctx, request, action: 'generate' }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 500,
-    });
+    const { data } = await this.client.call<ExternalESignGenerateRequest, ESignEnvelope>(
+      {
+        ctx,
+        vendor: 'esign',
+        operation: 'generate',
+        idempotencyKey: `esign:generate:${ctx.loanId}:${request.templateCode}`,
+        request,
+        path: '/esign/envelopes',
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          templateCode: payload.templateCode,
+          recipients: payload.recipients,
+          documents: payload.documents,
+        }),
+        response: (payload) => normalizeEnvelope(payload as ExternalEnvelopeResponse),
+        successEvent: {
+          name: 'order.status.changed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'esign',
+            envelopeId: response.envelopeId,
+            status: response.status,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('E-sign provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<ESignEnvelope>;
+    return data;
   }
 
   async send(ctx: ProviderContext, envelopeId: string): Promise<ESignEnvelope> {
-    const response = await callWithRetry(() => this.httpCall({ ctx, envelopeId, action: 'send' }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 500,
-    });
+    const { data } = await this.client.call<ExternalESignSendRequest, ESignEnvelope>(
+      {
+        ctx,
+        vendor: 'esign',
+        operation: 'send',
+        idempotencyKey: `esign:send:${ctx.loanId}:${envelopeId}`,
+        request: { envelopeId },
+        path: `/esign/envelopes/${envelopeId}/send`,
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          envelopeId: payload.envelopeId,
+        }),
+        response: (payload) => normalizeEnvelope(payload as ExternalEnvelopeResponse),
+        successEvent: {
+          name: 'order.status.changed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'esign',
+            envelopeId: response.envelopeId,
+            status: response.status,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('E-sign provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<ESignEnvelope>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<ESignEnvelope>;
+interface ExternalESignGenerateRequest {
+  correlationId: string;
+  templateCode: string;
+  recipients: ESignGenerateRequest['recipients'];
+  documents: string[];
+}
+
+interface ExternalESignSendRequest {
+  correlationId: string;
+  envelopeId: string;
+}
+
+interface ExternalEnvelopeResponse {
+  envelopeId: string;
+  status: ESignEnvelope['status'];
+  redirectUrl?: string;
+  rawVendorResponse?: unknown;
+}
+
+function normalizeEnvelope(payload: ExternalEnvelopeResponse): ESignEnvelope {
+  return {
+    envelopeId: payload.envelopeId,
+    status: payload.status,
+    redirectUrl: payload.redirectUrl,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }

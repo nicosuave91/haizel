@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface FloodOrderResponse {
   determination: 'zone_a' | 'zone_x' | 'zone_unknown';
@@ -20,29 +20,52 @@ export class MockFloodProvider implements FloodProvider {
   }
 }
 
-export class AdapterBackedFloodProvider implements FloodProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealFloodProvider implements FloodProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async order(ctx: ProviderContext): Promise<FloodOrderResponse> {
-    const response = await callWithRetry(() => this.httpCall({ ctx }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 300,
-    });
+    const { data } = await this.client.call<ExternalFloodRequest, FloodOrderResponse>(
+      {
+        ctx,
+        vendor: 'flood',
+        operation: 'order',
+        idempotencyKey: `flood:order:${ctx.loanId}`,
+        request: { correlationId: ctx.correlationId },
+        path: '/flood/determination',
+      },
+      {
+        response: (payload) => normalizeFloodResponse(payload as ExternalFloodResponse),
+        successEvent: {
+          name: 'order.status.changed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'flood',
+            determination: response.determination,
+            reportUrl: response.reportUrl,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('Flood provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<FloodOrderResponse>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<FloodOrderResponse>;
+interface ExternalFloodRequest {
+  correlationId: string;
+}
+
+interface ExternalFloodResponse {
+  determination: FloodOrderResponse['determination'];
+  reportUrl: string;
+  rawVendorResponse?: unknown;
+}
+
+function normalizeFloodResponse(payload: ExternalFloodResponse): FloodOrderResponse {
+  return {
+    determination: payload.determination,
+    reportUrl: payload.reportUrl,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }

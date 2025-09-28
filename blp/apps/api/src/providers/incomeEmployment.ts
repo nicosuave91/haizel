@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface IncomeEmploymentProviderRequest {
   consentToken: string;
@@ -44,8 +44,8 @@ export class MockIncomeEmploymentProvider implements IncomeEmploymentProvider {
   }
 }
 
-export class AdapterBackedIncomeEmploymentProvider implements IncomeEmploymentProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealIncomeEmploymentProvider implements IncomeEmploymentProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async verify(ctx: ProviderContext, input: IncomeEmploymentProviderRequest): Promise<IncomeEmploymentProviderResponse> {
     if (!input.consentToken) {
@@ -56,25 +56,59 @@ export class AdapterBackedIncomeEmploymentProvider implements IncomeEmploymentPr
       throw error;
     }
 
-    const response = await callWithRetry(() => this.httpCall({ ctx, input }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 400,
-    });
+    const { data } = await this.client.call<ExternalIncomeEmploymentRequest, IncomeEmploymentProviderResponse>(
+      {
+        ctx,
+        vendor: 'income_employment',
+        operation: 'verify',
+        idempotencyKey: `income:verify:${ctx.loanId}:${input.consentToken}`,
+        request: input,
+        path: '/income/employment/verify',
+        redactFields: ['ssn'],
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          consentToken: payload.consentToken,
+          employerHint: payload.employerHint,
+          payrollProvider: payload.payrollProvider,
+        }),
+        response: (payload) => normalizeIncomeResponse(payload as ExternalIncomeEmploymentResponse),
+        successEvent: {
+          name: 'verification.completed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'income_employment',
+            employmentStatus: response.employmentStatus,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('Income provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<IncomeEmploymentProviderResponse>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<IncomeEmploymentProviderResponse>;
+interface ExternalIncomeEmploymentRequest {
+  correlationId: string;
+  consentToken: string;
+  employerHint?: string;
+  payrollProvider?: string;
+}
+
+interface ExternalIncomeEmploymentResponse {
+  employmentStatus: IncomeEmploymentProviderResponse['employmentStatus'];
+  incomeStreams: IncomeEmploymentProviderResponse['incomeStreams'];
+  rawVendorResponse?: unknown;
+}
+
+function normalizeIncomeResponse(
+  payload: ExternalIncomeEmploymentResponse,
+): IncomeEmploymentProviderResponse {
+  return {
+    employmentStatus: payload.employmentStatus,
+    incomeStreams: payload.incomeStreams,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }
