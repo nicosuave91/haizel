@@ -24,8 +24,8 @@
     "@opentelemetry/instrumentation-http": "^0.51.1"
   },
   "devDependencies": {
-    "@types/express": "^4.17.23",
-    "@types/node": "^20.11.0",
-    "typescript": "^5.4.0"
+    "@types/express": "^4.17.21",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.12.7"
   }
 }
