@@ -4,14 +4,13 @@
     "composite": true,
     "declaration": true,
     "declarationMap": true,
-    "emitDeclarationOnly": false,
-    "moduleResolution": "node",
     "module": "ESNext",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "moduleResolution": "node",
     "rootDir": "src",
     "outDir": "dist",
     "skipLibCheck": true,
+    "types": ["node", "express"],
     "baseUrl": ".",
     "paths": {
       "@haizel/observability": ["../../../packages/observability/dist/index.d.ts"]

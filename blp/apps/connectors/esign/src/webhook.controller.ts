@@ -1,17 +1,14 @@
-import { Request, Response } from 'express';
+import type { Request } from 'express';
+import { Response } from 'express';
 import { verifyHmacSignature } from '@haizel/connectors-shared';
 import { ESignService, WebhookEvent } from './service';
 
 const SIGNATURE_HEADER = 'x-blp-signature';
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    rawBody?: Buffer;
-  }
-}
+type RawRequest = Request & { rawBody?: Buffer };
 
 export function createWebhookHandler(service = new ESignService()) {
-  return async (req: Request, res: Response) => {
+  return async (req: RawRequest, res: Response) => {
     const signature = req.header(SIGNATURE_HEADER) ?? '';
     const payload = (req.rawBody ?? Buffer.from(JSON.stringify(req.body))).toString('utf8');
     const secret = service.getWebhookSecret();

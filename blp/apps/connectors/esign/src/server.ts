@@ -1,5 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
+import type { Request } from 'express';
 import { ESignService } from './service';
 import {
   createSpanEnrichmentMiddleware,
@@ -10,11 +11,7 @@ import {
 const IDEMPOTENCY_HEADER = 'idempotency-key';
 const SIGNATURE_HEADER = 'x-blp-signature';
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    rawBody?: Buffer;
-  }
-}
+type RawRequest = Request & { rawBody?: Buffer };
 
 const telemetryReady = initializeConnectorTelemetry('esign');
 
@@ -25,7 +22,7 @@ export function createServer(service = new ESignService()) {
   app.use(createSpanEnrichmentMiddleware());
   app.use(
     express.json({
-      verify: (req, _res, buf) => {
+      verify: (req: RawRequest, _res, buf) => {
         req.rawBody = Buffer.from(buf);
       },
     }),
@@ -51,7 +48,7 @@ export function createServer(service = new ESignService()) {
     res.json(envelope);
   });
 
-  app.post('/api/v1/esign/webhooks', async (req, res) => {
+  app.post('/api/v1/esign/webhooks', async (req: RawRequest, res) => {
     const signature = req.header(SIGNATURE_HEADER) ?? '';
     const payload = (req.rawBody ?? Buffer.from(JSON.stringify(req.body))).toString('utf8');
     const secret = service.getWebhookSecret();

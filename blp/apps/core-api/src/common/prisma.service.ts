@@ -148,10 +148,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       orderBy: { createdAt: 'desc' },
     });
 
-    const lockMap = new Map<string, LoanTask>();
+    const lockMap = new Map<string, PricingLockEntity>();
     for (const lock of locks) {
       if (!lockMap.has(lock.loanId)) {
-        lockMap.set(lock.loanId, lock);
+        lockMap.set(lock.loanId, this.mapPricingLock(lock, tenant.slug));
       }
     }
 
