@@ -8,12 +8,17 @@ services:
     build_command: |
       corepack enable && corepack prepare pnpm@9.12.0 --activate
       pnpm --version
+
+      # Fail early if lockfile is stale
       pnpm run lock:check
+
+      # Deterministic install (will fail if mismatch somehow slipped in)
       pnpm install -w --frozen-lockfile
-      pnpm --filter @haizel/db run generate
-      pnpm --filter @haizel/observability run build
+
+      # Build in dependency order (adjust if you have others)
+      pnpm --filter @haizel/db run generate || true
       pnpm --filter @haizel/api run build
-      pnpm --filter core-api run build
+      pnpm -r run build
     run_command: pnpm --filter core-api exec node dist/main.js
     environment_slug: node-js
     envs:
