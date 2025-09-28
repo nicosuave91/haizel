@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: blp
+      POSTGRES_PASSWORD: blp
+      POSTGRES_DB: blp
+    ports:
+      - "${CORE_API_TEST_DB_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blp"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
+    driver: local
