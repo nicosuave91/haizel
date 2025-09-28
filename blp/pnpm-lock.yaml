@@ -6,6 +6,11 @@ settings:
 
 importers:
 
+  .:
+    devDependencies:
+      yaml:
+        specifier: ^2.5.0
+        version: 2.8.1
 
   apps/api:
     dependencies:
@@ -53,7 +58,7 @@ importers:
         version: 0.51.1(@opentelemetry/api@1.8.0)
       '@opentelemetry/semantic-conventions':
         specifier: ^1.18.0
-        version: 1.28.0
+        version: 1.37.0
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.23
@@ -89,7 +94,7 @@ importers:
         version: 6.3.4
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
       typescript:
         specifier: ^5.3.0
         version: 5.9.2
@@ -120,7 +125,7 @@ importers:
         version: 6.3.4
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
       typescript:
         specifier: ^5.3.0
         version: 5.9.2
@@ -151,7 +156,7 @@ importers:
         version: 6.3.4
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
       typescript:
         specifier: ^5.3.0
         version: 5.9.2
@@ -182,7 +187,7 @@ importers:
         version: 6.3.4
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
       typescript:
         specifier: ^5.3.0
         version: 5.9.2
@@ -190,14 +195,14 @@ importers:
         specifier: ^1.4.0
         version: 1.6.1(@types/node@20.19.17)(jsdom@24.1.3)(terser@5.44.0)
 
-    apps/connectors/shared:
-      dependencies:
-        '@haizel/api':
-          specifier: workspace:*
-          version: link:../../api
-        '@haizel/observability':
-          specifier: workspace:*
-          version: link:../../../packages/observability
+  apps/connectors/shared:
+    dependencies:
+      '@haizel/api':
+        specifier: workspace:*
+        version: link:../../api
+      '@haizel/observability':
+        specifier: workspace:*
+        version: link:../../../packages/observability
       '@opentelemetry/api':
         specifier: 1.8.0
         version: 1.8.0
@@ -207,6 +212,9 @@ importers:
       '@opentelemetry/instrumentation-http':
         specifier: ^0.51.1
         version: 0.51.1(@opentelemetry/api@1.8.0)
+      express:
+        specifier: ^4.18.0 || ^5.0.0
+        version: 4.21.2
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -237,7 +245,7 @@ importers:
         version: 10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.20)
       '@nestjs/testing':
         specifier: ^10.0.0
-        version: 10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.20))
+        version: 10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.20)(@nestjs/platform-express@10.4.20)
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
@@ -289,7 +297,7 @@ importers:
         version: 2.0.16
       jest:
         specifier: ^29.7.0
-        version: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+        version: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       prisma:
         specifier: ^5.22.0
         version: 5.22.0
@@ -301,10 +309,10 @@ importers:
         version: 6.3.4
       ts-jest:
         specifier: ^29.1.1
-        version: 29.4.4(@babel/core@7.28.4)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.28.4))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)))(typescript@5.9.2)
+        version: 29.4.4(@babel/core@7.28.4)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.28.4))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)))(typescript@5.9.2)
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
       typescript:
         specifier: ^5.4.5
         version: 5.9.2
@@ -391,7 +399,7 @@ importers:
         version: 2.6.0
       tailwindcss-animate:
         specifier: ^1.0.7
-        version: 1.0.7(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)))
+        version: 1.0.7(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)))
       zod:
         specifier: ^3.22.4
         version: 3.25.76
@@ -449,7 +457,7 @@ importers:
         version: 3.6.2
       tailwindcss:
         specifier: ^3.4.3
-        version: 3.4.17(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+        version: 3.4.17(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       typescript:
         specifier: ^5.4.5
         version: 5.9.2
@@ -473,17 +481,17 @@ importers:
         version: 1.30.1(@opentelemetry/api@1.8.0)
       '@temporalio/interceptors-opentelemetry':
         specifier: ^1.9.0
-        version: 1.9.3(@temporalio/activity@1.9.3)(@temporalio/client@1.9.3)(@temporalio/common@1.9.3)(@temporalio/worker@1.9.3)(@temporalio/workflow@1.9.3)
+        version: 1.13.0(@temporalio/activity@1.13.0)(@temporalio/client@1.13.0)(@temporalio/common@1.13.0)(@temporalio/worker@1.13.0)(@temporalio/workflow@1.13.0)
       '@temporalio/worker':
         specifier: ^1.9.0
-        version: 1.9.3
+        version: 1.13.0
       '@temporalio/workflow':
         specifier: ^1.9.0
-        version: 1.9.3
+        version: 1.13.0
     devDependencies:
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
       typescript:
         specifier: ^5.3.0
         version: 5.9.2
@@ -543,7 +551,7 @@ importers:
         version: 0.51.1(@opentelemetry/api@1.8.0)
       '@opentelemetry/semantic-conventions':
         specifier: ^1.18.0
-        version: 1.28.0
+        version: 1.37.0
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.23
@@ -963,12 +971,21 @@ packages:
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
 
+  '@grpc/grpc-js@1.14.0':
+    resolution: {integrity: sha512-N8Jx6PaYzcTRNzirReJCtADVoq4z7+1KQ4E70jTg/koQiMoUSN1kbNjPOqpPbhMFhfU1/l7ixspPl8dNY+FoUg==}
+    engines: {node: '>=12.10.0'}
+
   '@grpc/grpc-js@1.7.3':
     resolution: {integrity: sha512-H9l79u4kJ2PVSxUNA08HMYAnUBLj9v6KjYQ7SQ71hOZcEXhShE/y5iQCesP8+6/Ik/7i2O0a10bPquIcYfufog==}
     engines: {node: ^8.13.0 || >=10.10.0}
 
   '@grpc/proto-loader@0.7.15':
     resolution: {integrity: sha512-tMXdRCfYVixjuFK+Hk0Q1s38gV9zDiDJfWL3h1rv4Qc39oILCu1TRTDt7+fGUI8K4G1Fj125Hx/ru3azECWTyQ==}
+    engines: {node: '>=6'}
+    hasBin: true
+
+  '@grpc/proto-loader@0.8.0':
+    resolution: {integrity: sha512-rc1hOQtjIWGxcxpb9aHAfLpIctjEnsDehj0DAiVfBlmT84uvR0uUtN2hEi/ecvWVjXUGf5qPF4qEgiLOx1YIMQ==}
     engines: {node: '>=6'}
     hasBin: true
 
@@ -1124,6 +1141,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+
+  '@js-sdsl/ordered-map@4.4.2':
+    resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
   '@jsonjoy.com/base64@1.1.2':
     resolution: {integrity: sha512-q6XAnWQDIMA3+FTiOYajoYqySkO+JSat0ytXGSuRdq9uXE7o92gzuQwQM14xaCRlBLGq3v5miDGC4vkVTn54xA==}
@@ -1448,6 +1468,10 @@ packages:
 
   '@opentelemetry/semantic-conventions@1.28.0':
     resolution: {integrity: sha512-lp4qAiMTD4sNWW4DbKLBkfiMZ4jbAboJIGOQr5DvciMRI494OapieI9qiODpOt0XBr1LjIDy1xAGAnVs5supTA==}
+    engines: {node: '>=14'}
+
+  '@opentelemetry/semantic-conventions@1.37.0':
+    resolution: {integrity: sha512-JD6DerIKdJGmRp4jQyX5FlrQjA4tjOw1cvfsPAZXfOOEErMUHjPcPSICS+6WnM0nB0efSFARh0KAZss+bvExOA==}
     engines: {node: '>=14'}
 
   '@pact-foundation/pact-core@14.3.8':
@@ -2110,68 +2134,68 @@ packages:
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
 
-  '@swc/core-darwin-arm64@1.13.20':
-    resolution: {integrity: sha512-k/nqRwm6G3tw1BbCDxc3KmAMGsuDYA5Uh4MjYm23e+UziLyHz0z7W0zja3el+yGBIZXKlgSzWVFLsFDFzVqtgg==}
+  '@swc/core-darwin-arm64@1.13.5':
+    resolution: {integrity: sha512-lKNv7SujeXvKn16gvQqUQI5DdyY8v7xcoO3k06/FJbHJS90zEwZdQiMNRiqpYw/orU543tPaWgz7cIYWhbopiQ==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [darwin]
 
-  '@swc/core-darwin-x64@1.13.20':
-    resolution: {integrity: sha512-7xr+ACdUMNyrN87oEF1GvJIZJBAhGolfQVB0EYP08JEy8VSh//FEwfdlUz8gweaZyjOl1nuPS6ncXlKgZuZU8A==}
+  '@swc/core-darwin-x64@1.13.5':
+    resolution: {integrity: sha512-ILd38Fg/w23vHb0yVjlWvQBoE37ZJTdlLHa8LRCFDdX4WKfnVBiblsCU9ar4QTMNdeTBEX9iUF4IrbNWhaF1Ng==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [darwin]
 
-  '@swc/core-linux-arm-gnueabihf@1.13.20':
-    resolution: {integrity: sha512-IaOLxU1U/oGV3lZ2T8tD5nB/5O60UFPqj5ZxYzDpCBVB73tDQDIxiDcro1X81nHbwJHjuHmbIrhoflS7LQN6+A==}
+  '@swc/core-linux-arm-gnueabihf@1.13.5':
+    resolution: {integrity: sha512-Q6eS3Pt8GLkXxqz9TAw+AUk9HpVJt8Uzm54MvPsqp2yuGmY0/sNaPPNVqctCX9fu/Nu8eaWUen0si6iEiCsazQ==}
     engines: {node: '>=10'}
     cpu: [arm]
     os: [linux]
 
-  '@swc/core-linux-arm64-gnu@1.13.20':
-    resolution: {integrity: sha512-Lg6FyotDydXGnNnlw+u7vCZzR2+fX3Q2HiULBTYl2dey3TvRyzAfEhdgMjUc4beRzf26U9rzMuTroJ6KMBCBjA==}
+  '@swc/core-linux-arm64-gnu@1.13.5':
+    resolution: {integrity: sha512-aNDfeN+9af+y+M2MYfxCzCy/VDq7Z5YIbMqRI739o8Ganz6ST+27kjQFd8Y/57JN/hcnUEa9xqdS3XY7WaVtSw==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
 
-  '@swc/core-linux-arm64-musl@1.13.20':
-    resolution: {integrity: sha512-d1SvxmFykS0Ep8nPbduV1UwCvFjZ3ESzFKQdTbkr72bge8AseILBI9TbLTmoeWndDaTesiiTKRD5Y1iAvF1wvA==}
+  '@swc/core-linux-arm64-musl@1.13.5':
+    resolution: {integrity: sha512-9+ZxFN5GJag4CnYnq6apKTnnezpfJhCumyz0504/JbHLo+Ue+ZtJnf3RhyA9W9TINtLE0bC4hKpWi8ZKoETyOQ==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
 
-  '@swc/core-linux-x64-gnu@1.13.20':
-    resolution: {integrity: sha512-Bwmng57EuMod58Q8GDJA8rmUgFl20taK8w8MqeeDMiCnZY2+rJrNERbIX3sXZbwsf/kCIELZ7q4ZXiwdyB4zoQ==}
+  '@swc/core-linux-x64-gnu@1.13.5':
+    resolution: {integrity: sha512-WD530qvHrki8Ywt/PloKUjaRKgstQqNGvmZl54g06kA+hqtSE2FTG9gngXr3UJxYu/cNAjJYiBifm7+w4nbHbA==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
 
-  '@swc/core-linux-x64-musl@1.13.20':
-    resolution: {integrity: sha512-osCm3VEKL/OIKInyhy75S5B+R+QGBdpR1B5vwTYqG/1RB4vFM3O5SDtRZabd6NV9Cxc9dcLztWyZjhs2qp63SQ==}
+  '@swc/core-linux-x64-musl@1.13.5':
+    resolution: {integrity: sha512-Luj8y4OFYx4DHNQTWjdIuKTq2f5k6uSXICqx+FSabnXptaOBAbJHNbHT/06JZh6NRUouaf0mYXN0mcsqvkhd7Q==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
 
-  '@swc/core-win32-arm64-msvc@1.13.20':
-    resolution: {integrity: sha512-svbQNirwEa6zwaAJPrEmQnMVZsOz8Jpr4nakFLkYIQwwJ73sBUkUJvH9ouIWmIu5bvgQrbQlRpxWTIY3e0Utlg==}
+  '@swc/core-win32-arm64-msvc@1.13.5':
+    resolution: {integrity: sha512-cZ6UpumhF9SDJvv4DA2fo9WIzlNFuKSkZpZmPG1c+4PFSEMy5DFOjBSllCvnqihCabzXzpn6ykCwBmHpy31vQw==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [win32]
 
-  '@swc/core-win32-ia32-msvc@1.13.20':
-    resolution: {integrity: sha512-uVjjwGXJltUQK0v1qQSNGeMS6osLJuwgeTti5N7kxQ6mOfa1irxq+TX0YdIVQwIONMjzI+TP7lhqPeA9VdUjRg==}
+  '@swc/core-win32-ia32-msvc@1.13.5':
+    resolution: {integrity: sha512-C5Yi/xIikrFUzZcyGj9L3RpKljFvKiDMtyDzPKzlsDrKIw2EYY+bF88gB6oGY5RGmv4DAX8dbnpRAqgFD0FMEw==}
     engines: {node: '>=10'}
     cpu: [ia32]
     os: [win32]
 
-  '@swc/core-win32-x64-msvc@1.13.20':
-    resolution: {integrity: sha512-Xm1JAew/P0TgsPSXyo60IH865fAmt9b2Mzd0FBJ77Q1xA1o/Oi9teCeGChyFq3+6JFao6uT0N4mcI3BJ4WBfkA==}
+  '@swc/core-win32-x64-msvc@1.13.5':
+    resolution: {integrity: sha512-YrKdMVxbYmlfybCSbRtrilc6UA8GF5aPmGKBdPvjrarvsmf4i7ZHGCEnLtfOMd3Lwbs2WUZq3WdMbozYeLU93Q==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [win32]
 
-  '@swc/core@1.13.20':
-    resolution: {integrity: sha512-w6REE95NkGhQH/baA0reb6IQjVzSy5HOz9bZnRTFgOv+a1ZDo4p6yVs4McpFOZJeu810DSHayO3mwBsBXxZcaw==}
+  '@swc/core@1.13.5':
+    resolution: {integrity: sha512-WezcBo8a0Dg2rnR82zhwoR6aRNxeTGfK5QCD6TQ+kg3xx/zNT02s/0o+81h/3zhvFSB24NtqEr8FTw88O5W/JQ==}
     engines: {node: '>=10'}
     peerDependencies:
       '@swc/helpers': '>=0.5.17'
@@ -2237,17 +2261,43 @@ packages:
   '@tanstack/virtual-core@3.13.12':
     resolution: {integrity: sha512-1YBOJfRHV4sXUmWsFSf5rQor4Ss82G8dQWLRbnk3GA4jeP8hQt1hxXh0tmflpC0dz3VgEv/1+qwPyLeWkQuPFA==}
 
+  '@temporalio/activity@1.13.0':
+    resolution: {integrity: sha512-/h+S7+D7JylaRGZq/3q6h0HxFwFop5zO7qWWrYAT7HCgXdtVNZJWEbPjpV9elJXDVSZ7lIz4GrZREATYZ38Txw==}
+    engines: {node: '>= 18.0.0'}
+
   '@temporalio/activity@1.9.3':
     resolution: {integrity: sha512-QmY2dCNNSANhCgy4HCaeRmosyg73wI7KFbxTpnCrFjAWjxpJqBYC5qROrWHQEG/52Mcf59MtmznWSqz3M04Naw==}
+
+  '@temporalio/client@1.13.0':
+    resolution: {integrity: sha512-cIEqEFNy8HdvlKGTJQH80C8vUWG0PUAYVS++EGuSNmU3TFb/3TaV/ATVlBiLeiIr05lbDl3LAsWxTSO3gaRXEg==}
+    engines: {node: '>= 18.0.0'}
 
   '@temporalio/client@1.9.3':
     resolution: {integrity: sha512-RgcqMqgrzQG3jOrCxnh8mYqwDqngAMKoCUOPwZZU5AAJa0sBcBLV2lEhJ9KGEavpfZej/duplUa67EV0s+M/6w==}
 
+  '@temporalio/common@1.13.0':
+    resolution: {integrity: sha512-YBUXof7zsLbjI+J+FdndbN0JPZY3vKbBWhXV5T4efLZD1IyFmHww10bayDk+37/aVCgqPalBbgWHJnkwk0tRYA==}
+    engines: {node: '>= 18.0.0'}
+
   '@temporalio/common@1.9.3':
     resolution: {integrity: sha512-o6aAiqyIyu8b1bUOeY4nu04ZMwLAPR66Vtc8W/xYs7WM874wNhZlm8XWspqnmflI3W7td4y3Y50AHRi/BUNxRg==}
 
+  '@temporalio/core-bridge@1.13.0':
+    resolution: {integrity: sha512-xJpO+6m88Bdt2g9n13CvfiLy0Rw80Rn8bbCG1U87LPVPoR2xbE2YgcX7ps56zptiQgrSldT7S8UYU2f5X5iAyQ==}
+    engines: {node: '>= 18.0.0'}
+
   '@temporalio/core-bridge@1.9.3':
     resolution: {integrity: sha512-0cYVDzypc+ilpWeBsYkHP8wv/SbtcLZA4z4ZZd2c6OWKEM3+p4UuW8AiXZf/avL+rpo7cjrSRl+PTWe52vPReg==}
+
+  '@temporalio/interceptors-opentelemetry@1.13.0':
+    resolution: {integrity: sha512-JdVQUfpaa30x7VCqf5ZGUfjT9TkwNpJ4scCmSBN+nTcZDohtysZVSHFBF0C1hNZNrMQtEW7yGBbEnu83rslftg==}
+    engines: {node: '>= 18.0.0'}
+    peerDependencies:
+      '@temporalio/activity': 1.13.0
+      '@temporalio/client': 1.13.0
+      '@temporalio/common': 1.13.0
+      '@temporalio/worker': 1.13.0
+      '@temporalio/workflow': 1.13.0
 
   '@temporalio/interceptors-opentelemetry@1.9.3':
     resolution: {integrity: sha512-XaLpTHgOcefAlwRj8CmOUvCPNM3Jr1YaezBefqXvZdZxC6a5ys/5rlEzSxuYDVCQ9tN5zQ0lbrZ8zvYdFZlgVw==}
@@ -2258,15 +2308,31 @@ packages:
       '@temporalio/worker': 1.9.3
       '@temporalio/workflow': 1.9.3
 
+  '@temporalio/nexus@1.13.0':
+    resolution: {integrity: sha512-YKVIWzE8/83aGzaR28Y2m45WWlAxboKjHrvpdIrWogYEB7sG6dgju07zIqCKtXcA/k7ja29fq638y5ii7SLP8Q==}
+    engines: {node: '>= 18.0.0'}
+
+  '@temporalio/proto@1.13.0':
+    resolution: {integrity: sha512-jplwOQAgghdRJljTVI9Lawar4L0vGM+vT0TfxvKm+/hVf4CpPEAwvy+El9doR4wu1uYg9g94LnPmZdzoUu5qyA==}
+    engines: {node: '>= 18.0.0'}
+
   '@temporalio/proto@1.9.3':
     resolution: {integrity: sha512-YOeelTGdz8zLX8LUlXlERvd/VTaCPmV9xN/JEUQoxsyc7YpOB2wVwdrXS7Al/2b1jOTYRm00vbn3rljRV9W5dA==}
 
   '@temporalio/testing@1.9.3':
     resolution: {integrity: sha512-HsNH552QdooJ0LNLM5fXe3CG9Een2vAYcO9RHg7zHiBNuF4PSb4JxCL9v16Y1lhf1aSZJuQEBHShpXxb0RgTDw==}
 
+  '@temporalio/worker@1.13.0':
+    resolution: {integrity: sha512-NmtDleOccUVrYwbg8H3gjQt5dPMbKG6SUTegO9KlhipsEuJQ69OAeenMhjUmuEsZhG/jkaFwPR81JnAvBovgIw==}
+    engines: {node: '>= 18.0.0'}
+
   '@temporalio/worker@1.9.3':
     resolution: {integrity: sha512-RFotNUeWNnLDk4EvnPVZBiYAZWc+daezr/Prn/iMsCI6e3CxbchDha6GiqIVkIF3ppq1R2Vl+FpouNA/gBniGg==}
     engines: {node: '>= 14.18.0'}
+
+  '@temporalio/workflow@1.13.0':
+    resolution: {integrity: sha512-8mVMB55cwl0e4+EBlp1prQyttJ8qYZfhsieVcygirr5xXKBU6wcSCun3sAk16lTYa4S5We7XZPyZk0vBB6/WOA==}
+    engines: {node: '>= 18.0.0'}
 
   '@temporalio/workflow@1.9.3':
     resolution: {integrity: sha512-JU3SKZf+Cdm9ebNIbhLB3DM3NmGyusOCCZ1eSOWCHPAJo+fW9Zi6B2ba+Td7XRu6EGWJwvBwh6fnqzVCxtBPMA==}
@@ -2720,8 +2786,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.8.8:
-    resolution: {integrity: sha512-be0PUaPsQX/gPWWgFsdD+GFzaoig5PXaUC1xLkQiYdDnANU8sMnHoQd8JhbJQuvTWrWLyeFN9Imb5Qtfvr4RrQ==}
+  baseline-browser-mapping@2.8.9:
+    resolution: {integrity: sha512-hY/u2lxLrbecMEWSB0IpGzGyDyeoMFQhCvZd2jGFSE5I17Fh01sYUBPCJtkWERw7zrac9+cIghxm/ytJa2X8iA==}
     hasBin: true
 
   binary-extensions@2.3.0:
@@ -3172,8 +3238,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  electron-to-chromium@1.5.224:
-    resolution: {integrity: sha512-kWAoUu/bwzvnhpdZSIc6KUyvkI1rbRXMT0Eq8pKReyOyaPZcctMli+EgvcN1PAvwVc7Tdo4Fxi2PsLNDU05mdg==}
+  electron-to-chromium@1.5.227:
+    resolution: {integrity: sha512-ITxuoPfJu3lsNWUi2lBM2PaBPYgH3uqmxut5vmBxgYvyI4AlJ6P3Cai1O76mOrkJCBzq0IxWg/NtqOrpu/0gKA==}
 
   emittery@0.13.1:
     resolution: {integrity: sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ==}
@@ -4285,8 +4351,8 @@ packages:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
     engines: {node: '>= 0.6'}
 
-  memfs@4.46.1:
-    resolution: {integrity: sha512-2wjHDg7IjP+ufAqqqSxjiNePFDrvWviA79ajUwG9lkHhk3HzZOLBzzoUG8cx9vCagj6VvBQD7oXuLuFz5LaAOQ==}
+  memfs@4.47.0:
+    resolution: {integrity: sha512-Xey8IZA57tfotV/TN4d6BmccQuhFP+CqRiI7TTNdipZdZBzF2WnzUcH//Cudw6X4zJiUbo/LTuU/HPA/iC/pNg==}
 
   memoizee@0.4.17:
     resolution: {integrity: sha512-DGqD7Hjpi/1or4F/aYAspXKNm5Yili0QDAFAY4QYvpqpgiY6+1jOfqpmByzjxbWd/T9mChbCArXAbDAsTm5oXA==}
@@ -4379,6 +4445,10 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
+  ms@3.0.0-canary.1:
+    resolution: {integrity: sha512-kh8ARjh8rMN7Du2igDRO9QJnqCb2xYTJxyQYK7vJJS4TvLLmsbyhiKpSW+t+y26gyOyMd0riphX0GeWKU3ky5g==}
+    engines: {node: '>=12.13'}
+
   ms@3.0.0-canary.202508261828:
     resolution: {integrity: sha512-NotsCoUCIUkojWCzQff4ttdCfIPoA1UGZsyQbi7KmqkNRfKCrvga8JJi2PknHymHOuor0cJSn/ylj52Cbt2IrQ==}
     engines: {node: '>=18'}
@@ -4426,6 +4496,10 @@ packages:
 
   next-tick@1.1.0:
     resolution: {integrity: sha512-CXdUiJembsNjuToQvxayPZF9Vqht7hewsvy2sOWafLvi2awflj9mOC6bHIg50orX8IJvWKY9wYQ/zB2kogPslQ==}
+
+  nexus-rpc@0.0.1:
+    resolution: {integrity: sha512-hAWn8Hh2eewpB5McXR5EW81R3pR/ziuGhKCF3wFyUVCklanPqrIgMNr7jKCbzXeNVad0nUDfWpFRqh2u+zxQtw==}
+    engines: {node: '>= 18.0.0'}
 
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
@@ -5187,6 +5261,10 @@ packages:
 
   statuses@2.0.1:
     resolution: {integrity: sha512-RwNA9Z/7PrK06rYLIzFMlaF+l73iwpzsqRIFgbMLbTcLD6cOao82TaWefPXQvB2fOC4AjuYSEndS7N/mTCbkdQ==}
+    engines: {node: '>= 0.8'}
+
+  statuses@2.0.2:
+    resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
 
   std-env@3.9.0:
@@ -6113,7 +6191,7 @@ snapshots:
 
   '@bundled-es-modules/statuses@1.0.1':
     dependencies:
-      statuses: 2.0.1
+      statuses: 2.0.2
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -6248,12 +6326,24 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
+  '@grpc/grpc-js@1.14.0':
+    dependencies:
+      '@grpc/proto-loader': 0.8.0
+      '@js-sdsl/ordered-map': 4.4.2
+
   '@grpc/grpc-js@1.7.3':
     dependencies:
       '@grpc/proto-loader': 0.7.15
       '@types/node': 20.19.17
 
   '@grpc/proto-loader@0.7.15':
+    dependencies:
+      lodash.camelcase: 4.3.0
+      long: 5.3.2
+      protobufjs: 7.5.4
+      yargs: 17.7.2
+
+  '@grpc/proto-loader@0.8.0':
     dependencies:
       lodash.camelcase: 4.3.0
       long: 5.3.2
@@ -6332,7 +6422,7 @@ snapshots:
       jest-util: 29.7.0
       slash: 3.0.0
 
-  '@jest/core@29.7.0(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))':
+  '@jest/core@29.7.0(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))':
     dependencies:
       '@jest/console': 29.7.0
       '@jest/reporters': 29.7.0
@@ -6346,7 +6436,7 @@ snapshots:
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-changed-files: 29.7.0
-      jest-config: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      jest-config: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       jest-haste-map: 29.7.0
       jest-message-util: 29.7.0
       jest-regex-util: 29.6.3
@@ -6514,6 +6604,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@js-sdsl/ordered-map@4.4.2': {}
+
   '@jsonjoy.com/base64@1.1.2(tslib@2.8.1)':
     dependencies:
       tslib: 2.8.1
@@ -6602,7 +6694,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@nestjs/testing@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.20))':
+  '@nestjs/testing@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.20)(@nestjs/platform-express@10.4.20)':
     dependencies:
       '@nestjs/common': 10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2)
       '@nestjs/core': 10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20)(reflect-metadata@0.1.14)(rxjs@7.8.2)
@@ -6680,7 +6772,7 @@ snapshots:
 
   '@opentelemetry/exporter-trace-otlp-grpc@0.51.1(@opentelemetry/api@1.8.0)':
     dependencies:
-      '@grpc/grpc-js': 1.7.3
+      '@grpc/grpc-js': 1.14.0
       '@opentelemetry/api': 1.8.0
       '@opentelemetry/core': 1.24.1(@opentelemetry/api@1.8.0)
       '@opentelemetry/otlp-grpc-exporter-base': 0.51.1(@opentelemetry/api@1.8.0)
@@ -6720,7 +6812,7 @@ snapshots:
       '@opentelemetry/api': 1.8.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.8.0)
       '@opentelemetry/instrumentation': 0.52.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/semantic-conventions': 1.28.0
+      '@opentelemetry/semantic-conventions': 1.37.0
     transitivePeerDependencies:
       - supports-color
 
@@ -6738,7 +6830,7 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.8.0
       '@opentelemetry/instrumentation': 0.51.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/semantic-conventions': 1.28.0
+      '@opentelemetry/semantic-conventions': 1.37.0
     transitivePeerDependencies:
       - supports-color
 
@@ -6773,7 +6865,7 @@ snapshots:
 
   '@opentelemetry/otlp-grpc-exporter-base@0.51.1(@opentelemetry/api@1.8.0)':
     dependencies:
-      '@grpc/grpc-js': 1.7.3
+      '@grpc/grpc-js': 1.14.0
       '@opentelemetry/api': 1.8.0
       '@opentelemetry/core': 1.24.1(@opentelemetry/api@1.8.0)
       '@opentelemetry/otlp-exporter-base': 0.51.1(@opentelemetry/api@1.8.0)
@@ -6889,6 +6981,8 @@ snapshots:
   '@opentelemetry/semantic-conventions@1.24.1': {}
 
   '@opentelemetry/semantic-conventions@1.28.0': {}
+
+  '@opentelemetry/semantic-conventions@1.37.0': {}
 
   '@pact-foundation/pact-core@14.3.8':
     dependencies:
@@ -7548,51 +7642,51 @@ snapshots:
 
   '@socket.io/component-emitter@3.1.2': {}
 
-  '@swc/core-darwin-arm64@1.13.20':
+  '@swc/core-darwin-arm64@1.13.5':
     optional: true
 
-  '@swc/core-darwin-x64@1.13.20':
+  '@swc/core-darwin-x64@1.13.5':
     optional: true
 
-  '@swc/core-linux-arm-gnueabihf@1.13.20':
+  '@swc/core-linux-arm-gnueabihf@1.13.5':
     optional: true
 
-  '@swc/core-linux-arm64-gnu@1.13.20':
+  '@swc/core-linux-arm64-gnu@1.13.5':
     optional: true
 
-  '@swc/core-linux-arm64-musl@1.13.20':
+  '@swc/core-linux-arm64-musl@1.13.5':
     optional: true
 
-  '@swc/core-linux-x64-gnu@1.13.20':
+  '@swc/core-linux-x64-gnu@1.13.5':
     optional: true
 
-  '@swc/core-linux-x64-musl@1.13.20':
+  '@swc/core-linux-x64-musl@1.13.5':
     optional: true
 
-  '@swc/core-win32-arm64-msvc@1.13.20':
+  '@swc/core-win32-arm64-msvc@1.13.5':
     optional: true
 
-  '@swc/core-win32-ia32-msvc@1.13.20':
+  '@swc/core-win32-ia32-msvc@1.13.5':
     optional: true
 
-  '@swc/core-win32-x64-msvc@1.13.20':
+  '@swc/core-win32-x64-msvc@1.13.5':
     optional: true
 
-  '@swc/core@1.13.20':
+  '@swc/core@1.13.5':
     dependencies:
       '@swc/counter': 0.1.3
       '@swc/types': 0.1.25
     optionalDependencies:
-      '@swc/core-darwin-arm64': 1.13.20
-      '@swc/core-darwin-x64': 1.13.20
-      '@swc/core-linux-arm-gnueabihf': 1.13.20
-      '@swc/core-linux-arm64-gnu': 1.13.20
-      '@swc/core-linux-arm64-musl': 1.13.20
-      '@swc/core-linux-x64-gnu': 1.13.20
-      '@swc/core-linux-x64-musl': 1.13.20
-      '@swc/core-win32-arm64-msvc': 1.13.20
-      '@swc/core-win32-ia32-msvc': 1.13.20
-      '@swc/core-win32-x64-msvc': 1.13.20
+      '@swc/core-darwin-arm64': 1.13.5
+      '@swc/core-darwin-x64': 1.13.5
+      '@swc/core-linux-arm-gnueabihf': 1.13.5
+      '@swc/core-linux-arm64-gnu': 1.13.5
+      '@swc/core-linux-arm64-musl': 1.13.5
+      '@swc/core-linux-x64-gnu': 1.13.5
+      '@swc/core-linux-x64-musl': 1.13.5
+      '@swc/core-win32-arm64-msvc': 1.13.5
+      '@swc/core-win32-ia32-msvc': 1.13.5
+      '@swc/core-win32-x64-msvc': 1.13.5
 
   '@swc/counter@0.1.3': {}
 
@@ -7655,10 +7749,25 @@ snapshots:
 
   '@tanstack/virtual-core@3.13.12': {}
 
+  '@temporalio/activity@1.13.0':
+    dependencies:
+      '@temporalio/client': 1.13.0
+      '@temporalio/common': 1.13.0
+      abort-controller: 3.0.0
+
   '@temporalio/activity@1.9.3':
     dependencies:
       '@temporalio/common': 1.9.3
       abort-controller: 3.0.0
+
+  '@temporalio/client@1.13.0':
+    dependencies:
+      '@grpc/grpc-js': 1.14.0
+      '@temporalio/common': 1.13.0
+      '@temporalio/proto': 1.13.0
+      abort-controller: 3.0.0
+      long: 5.3.2
+      uuid: 9.0.1
 
   '@temporalio/client@1.9.3':
     dependencies:
@@ -7669,6 +7778,14 @@ snapshots:
       long: 5.3.2
       uuid: 9.0.1
 
+  '@temporalio/common@1.13.0':
+    dependencies:
+      '@temporalio/proto': 1.13.0
+      long: 5.3.2
+      ms: 3.0.0-canary.1
+      nexus-rpc: 0.0.1
+      proto3-json-serializer: 2.0.2
+
   '@temporalio/common@1.9.3':
     dependencies:
       '@temporalio/proto': 1.9.3
@@ -7676,12 +7793,32 @@ snapshots:
       ms: 3.0.0-canary.202508261828
       proto3-json-serializer: 2.0.2
 
+  '@temporalio/core-bridge@1.13.0':
+    dependencies:
+      '@grpc/grpc-js': 1.14.0
+      '@temporalio/common': 1.13.0
+      arg: 5.0.2
+      cargo-cp-artifact: 0.1.9
+      which: 4.0.0
+
   '@temporalio/core-bridge@1.9.3':
     dependencies:
       '@temporalio/common': 1.9.3
       arg: 5.0.2
       cargo-cp-artifact: 0.1.9
       which: 4.0.0
+
+  '@temporalio/interceptors-opentelemetry@1.13.0(@temporalio/activity@1.13.0)(@temporalio/client@1.13.0)(@temporalio/common@1.13.0)(@temporalio/worker@1.13.0)(@temporalio/workflow@1.13.0)':
+    dependencies:
+      '@opentelemetry/api': 1.8.0
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.8.0)
+      '@opentelemetry/resources': 1.30.1(@opentelemetry/api@1.8.0)
+      '@opentelemetry/sdk-trace-base': 1.30.1(@opentelemetry/api@1.8.0)
+      '@temporalio/activity': 1.13.0
+      '@temporalio/client': 1.13.0
+      '@temporalio/common': 1.13.0
+      '@temporalio/worker': 1.13.0
+      '@temporalio/workflow': 1.13.0
 
   '@temporalio/interceptors-opentelemetry@1.9.3(@temporalio/activity@1.9.3)(@temporalio/client@1.9.3)(@temporalio/common@1.9.3)(@temporalio/worker@1.9.3)(@temporalio/workflow@1.9.3)':
     dependencies:
@@ -7694,6 +7831,19 @@ snapshots:
       '@temporalio/common': 1.9.3
       '@temporalio/worker': 1.9.3
       '@temporalio/workflow': 1.9.3
+
+  '@temporalio/nexus@1.13.0':
+    dependencies:
+      '@temporalio/client': 1.13.0
+      '@temporalio/common': 1.13.0
+      '@temporalio/proto': 1.13.0
+      long: 5.3.2
+      nexus-rpc: 0.0.1
+
+  '@temporalio/proto@1.13.0':
+    dependencies:
+      long: 5.3.2
+      protobufjs: 7.5.4
 
   '@temporalio/proto@1.9.3':
     dependencies:
@@ -7717,9 +7867,39 @@ snapshots:
       - uglify-js
       - webpack-cli
 
+  '@temporalio/worker@1.13.0':
+    dependencies:
+      '@grpc/grpc-js': 1.14.0
+      '@swc/core': 1.13.5
+      '@temporalio/activity': 1.13.0
+      '@temporalio/client': 1.13.0
+      '@temporalio/common': 1.13.0
+      '@temporalio/core-bridge': 1.13.0
+      '@temporalio/nexus': 1.13.0
+      '@temporalio/proto': 1.13.0
+      '@temporalio/workflow': 1.13.0
+      abort-controller: 3.0.0
+      heap-js: 2.6.0
+      memfs: 4.47.0
+      nexus-rpc: 0.0.1
+      proto3-json-serializer: 2.0.2
+      protobufjs: 7.5.4
+      rxjs: 7.8.2
+      source-map: 0.7.6
+      source-map-loader: 4.0.2(webpack@5.101.3(@swc/core@1.13.5))
+      supports-color: 8.1.1
+      swc-loader: 0.2.6(@swc/core@1.13.5)(webpack@5.101.3(@swc/core@1.13.5))
+      unionfs: 4.6.0
+      webpack: 5.101.3(@swc/core@1.13.5)
+    transitivePeerDependencies:
+      - '@swc/helpers'
+      - esbuild
+      - uglify-js
+      - webpack-cli
+
   '@temporalio/worker@1.9.3':
     dependencies:
-      '@swc/core': 1.13.20
+      '@swc/core': 1.13.5
       '@temporalio/activity': 1.9.3
       '@temporalio/client': 1.9.3
       '@temporalio/common': 1.9.3
@@ -7728,18 +7908,24 @@ snapshots:
       '@temporalio/workflow': 1.9.3
       abort-controller: 3.0.0
       heap-js: 2.6.0
-      memfs: 4.46.1
+      memfs: 4.47.0
       rxjs: 7.8.2
       source-map: 0.7.6
-      source-map-loader: 4.0.2(webpack@5.101.3(@swc/core@1.13.20))
-      swc-loader: 0.2.6(@swc/core@1.13.20)(webpack@5.101.3(@swc/core@1.13.20))
+      source-map-loader: 4.0.2(webpack@5.101.3(@swc/core@1.13.5))
+      swc-loader: 0.2.6(@swc/core@1.13.5)(webpack@5.101.3(@swc/core@1.13.5))
       unionfs: 4.6.0
-      webpack: 5.101.3(@swc/core@1.13.20)
+      webpack: 5.101.3(@swc/core@1.13.5)
     transitivePeerDependencies:
       - '@swc/helpers'
       - esbuild
       - uglify-js
       - webpack-cli
+
+  '@temporalio/workflow@1.13.0':
+    dependencies:
+      '@temporalio/common': 1.13.0
+      '@temporalio/proto': 1.13.0
+      nexus-rpc: 0.0.1
 
   '@temporalio/workflow@1.9.3':
     dependencies:
@@ -8302,7 +8488,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.8.8: {}
+  baseline-browser-mapping@2.8.9: {}
 
   binary-extensions@2.3.0: {}
 
@@ -8338,9 +8524,9 @@ snapshots:
 
   browserslist@4.26.2:
     dependencies:
-      baseline-browser-mapping: 2.8.8
+      baseline-browser-mapping: 2.8.9
       caniuse-lite: 1.0.30001745
-      electron-to-chromium: 1.5.224
+      electron-to-chromium: 1.5.227
       node-releases: 2.0.21
       update-browserslist-db: 1.1.3(browserslist@4.26.2)
 
@@ -8359,7 +8545,7 @@ snapshots:
   buffer@4.9.2:
     dependencies:
       base64-js: 1.5.1
-      ieee754: 1.2.1
+      ieee754: 1.1.13
       isarray: 1.0.0
 
   buffer@6.0.3:
@@ -8537,13 +8723,13 @@ snapshots:
       object-assign: 4.1.1
       vary: 1.1.2
 
-  create-jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)):
+  create-jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)):
     dependencies:
       '@jest/types': 29.6.3
       chalk: 4.1.2
       exit: 0.1.2
       graceful-fs: 4.2.11
-      jest-config: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      jest-config: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       jest-util: 29.7.0
       prompts: 2.4.2
     transitivePeerDependencies:
@@ -8742,7 +8928,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  electron-to-chromium@1.5.224: {}
+  electron-to-chromium@1.5.227: {}
 
   emittery@0.13.1: {}
 
@@ -9631,16 +9817,16 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  jest-cli@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)):
+  jest-cli@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)):
     dependencies:
-      '@jest/core': 29.7.0(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      '@jest/core': 29.7.0(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
       chalk: 4.1.2
-      create-jest: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      create-jest: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       exit: 0.1.2
       import-local: 3.2.0
-      jest-config: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      jest-config: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       jest-util: 29.7.0
       jest-validate: 29.7.0
       yargs: 17.7.2
@@ -9650,7 +9836,7 @@ snapshots:
       - supports-color
       - ts-node
 
-  jest-config@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)):
+  jest-config@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)):
     dependencies:
       '@babel/core': 7.28.4
       '@jest/test-sequencer': 29.7.0
@@ -9676,7 +9862,7 @@ snapshots:
       strip-json-comments: 3.1.1
     optionalDependencies:
       '@types/node': 20.19.17
-      ts-node: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+      ts-node: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -9902,12 +10088,12 @@ snapshots:
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
-  jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)):
+  jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)):
     dependencies:
-      '@jest/core': 29.7.0(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      '@jest/core': 29.7.0(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       '@jest/types': 29.6.3
       import-local: 3.2.0
-      jest-cli: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      jest-cli: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -10135,7 +10321,7 @@ snapshots:
 
   media-typer@0.3.0: {}
 
-  memfs@4.46.1:
+  memfs@4.47.0:
     dependencies:
       '@jsonjoy.com/json-pack': 1.14.0(tslib@2.8.1)
       '@jsonjoy.com/util': 1.9.0(tslib@2.8.1)
@@ -10219,6 +10405,8 @@ snapshots:
 
   ms@2.1.3: {}
 
+  ms@3.0.0-canary.1: {}
+
   ms@3.0.0-canary.202508261828: {}
 
   msw@2.11.3(@types/node@20.19.17)(typescript@5.9.2):
@@ -10279,6 +10467,8 @@ snapshots:
   neo-async@2.6.2: {}
 
   next-tick@1.1.0: {}
+
+  nexus-rpc@0.0.1: {}
 
   node-domexception@1.0.0: {}
 
@@ -10515,13 +10705,13 @@ snapshots:
       camelcase-css: 2.0.1
       postcss: 8.5.6
 
-  postcss-load-config@4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)):
+  postcss-load-config@4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)):
     dependencies:
       lilconfig: 3.1.3
       yaml: 2.8.1
     optionalDependencies:
       postcss: 8.5.6
-      ts-node: 10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)
+      ts-node: 10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)
 
   postcss-nested@6.2.0(postcss@8.5.6):
     dependencies:
@@ -11043,11 +11233,11 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  source-map-loader@4.0.2(webpack@5.101.3(@swc/core@1.13.20)):
+  source-map-loader@4.0.2(webpack@5.101.3(@swc/core@1.13.5)):
     dependencies:
       iconv-lite: 0.6.3
       source-map-js: 1.2.1
-      webpack: 5.101.3(@swc/core@1.13.20)
+      webpack: 5.101.3(@swc/core@1.13.5)
 
   source-map-support@0.5.13:
     dependencies:
@@ -11074,6 +11264,8 @@ snapshots:
   stackback@0.0.2: {}
 
   statuses@2.0.1: {}
+
+  statuses@2.0.2: {}
 
   std-env@3.9.0: {}
 
@@ -11177,21 +11369,21 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
-  swc-loader@0.2.6(@swc/core@1.13.20)(webpack@5.101.3(@swc/core@1.13.20)):
+  swc-loader@0.2.6(@swc/core@1.13.5)(webpack@5.101.3(@swc/core@1.13.5)):
     dependencies:
-      '@swc/core': 1.13.20
+      '@swc/core': 1.13.5
       '@swc/counter': 0.1.3
-      webpack: 5.101.3(@swc/core@1.13.20)
+      webpack: 5.101.3(@swc/core@1.13.5)
 
   symbol-tree@3.2.4: {}
 
   tailwind-merge@2.6.0: {}
 
-  tailwindcss-animate@1.0.7(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))):
+  tailwindcss-animate@1.0.7(tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))):
     dependencies:
-      tailwindcss: 3.4.17(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      tailwindcss: 3.4.17(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
 
-  tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)):
+  tailwindcss@3.4.17(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)):
     dependencies:
       '@alloc/quick-lru': 5.2.0
       arg: 5.0.2
@@ -11210,7 +11402,7 @@ snapshots:
       postcss: 8.5.6
       postcss-import: 15.1.0(postcss@8.5.6)
       postcss-js: 4.1.0(postcss@8.5.6)
-      postcss-load-config: 4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      postcss-load-config: 4.0.2(postcss@8.5.6)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       postcss-nested: 6.2.0(postcss@8.5.6)
       postcss-selector-parser: 6.1.2
       resolve: 1.22.10
@@ -11236,16 +11428,16 @@ snapshots:
       - uglify-js
       - webpack-cli
 
-  terser-webpack-plugin@5.3.14(@swc/core@1.13.20)(webpack@5.101.3(@swc/core@1.13.20)):
+  terser-webpack-plugin@5.3.14(@swc/core@1.13.5)(webpack@5.101.3(@swc/core@1.13.5)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
       terser: 5.44.0
-      webpack: 5.101.3(@swc/core@1.13.20)
+      webpack: 5.101.3(@swc/core@1.13.5)
     optionalDependencies:
-      '@swc/core': 1.13.20
+      '@swc/core': 1.13.5
 
   terser@5.44.0:
     dependencies:
@@ -11336,12 +11528,12 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-jest@29.4.4(@babel/core@7.28.4)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.28.4))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2)))(typescript@5.9.2):
+  ts-jest@29.4.4(@babel/core@7.28.4)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.28.4))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2)))(typescript@5.9.2):
     dependencies:
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
       handlebars: 4.7.8
-      jest: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      jest: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2))
       json5: 2.2.3
       lodash.memoize: 4.1.2
       make-error: 1.3.6
@@ -11356,7 +11548,7 @@ snapshots:
       babel-jest: 29.7.0(@babel/core@7.28.4)
       jest-util: 29.7.0
 
-  ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2):
+  ts-node@10.9.2(@swc/core@1.13.5)(@types/node@20.19.17)(typescript@5.9.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
@@ -11374,7 +11566,7 @@ snapshots:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
     optionalDependencies:
-      '@swc/core': 1.13.20
+      '@swc/core': 1.13.5
 
   tslib@2.8.1: {}
 
@@ -11600,7 +11792,7 @@ snapshots:
 
   webpack-sources@3.3.3: {}
 
-  webpack@5.101.3(@swc/core@1.13.20):
+  webpack@5.101.3(@swc/core@1.13.5):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -11624,7 +11816,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.2
       tapable: 2.2.3
-      terser-webpack-plugin: 5.3.14(@swc/core@1.13.20)(webpack@5.101.3(@swc/core@1.13.20))
+      terser-webpack-plugin: 5.3.14(@swc/core@1.13.5)(webpack@5.101.3(@swc/core@1.13.5))
       watchpack: 2.4.4
       webpack-sources: 3.3.3
     transitivePeerDependencies:

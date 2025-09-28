@@ -5,7 +5,12 @@ services:
     http_port: 3000
     routes:
       - path: /
-    build_command: corepack enable && pnpm install --filter core-api... --frozen-lockfile && pnpm -r --filter 'core-api...' build && pnpm --filter core-api build
+    build_command: |
+      corepack enable && corepack prepare pnpm@9.12.0 --activate
+      pnpm --version
+      pnpm run lock:check
+      pnpm install -w --frozen-lockfile
+      pnpm -r run build
     run_command: pnpm --filter core-api exec node dist/main.js
     environment_slug: node-js
     envs:
