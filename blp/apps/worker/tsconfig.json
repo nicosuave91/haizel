@@ -11,5 +11,8 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
-  "exclude": ["dist"]
+  "exclude": ["dist"],
+  "references": [
+    { "path": "../../packages/observability" }
+  ]
 }

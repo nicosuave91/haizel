@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import type { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { HttpSpanInterceptor, initMetrics, initTracing, shutdownTracing } from '@haizel/observability';
 import { AppModule } from './app.module';
@@ -29,7 +30,7 @@ async function bootstrap() {
   });
 
   const app = await NestFactory.create(AppModule, { logger: false });
-  app.use((req, _res, next) => {
+  app.use((req: Request & { contextId?: string }, _res: Response, next: NextFunction) => {
     if (!req.headers['x-request-id']) {
       req.headers['x-request-id'] = randomUUID();
     }

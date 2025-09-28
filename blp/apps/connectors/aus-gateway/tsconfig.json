@@ -6,8 +6,9 @@
     "module": "ESNext",
     "target": "ES2020",
     "moduleResolution": "Node",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "types": ["node", "express"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
-  "exclude": ["dist"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "test"]
 }

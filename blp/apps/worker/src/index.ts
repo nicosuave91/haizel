@@ -49,7 +49,6 @@ export async function runWorker(options: WorkerBootstrapOptions = {}): Promise<v
   const worker = await Worker.create({
     connection,
     workflowsPath: require.resolve('./workflows'),
-    workflows,
     activities,
     taskQueue,
     sinks: {
