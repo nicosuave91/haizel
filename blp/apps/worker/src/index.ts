@@ -8,7 +8,7 @@ import {
   OpenTelemetryActivityInboundInterceptor,
   makeWorkflowExporter,
 } from '@temporalio/interceptors-opentelemetry';
-import { initTracing } from '@haizel/api/observability';
+import { initTracing } from '@haizel/observability';
 import * as activities from './activities';
 import * as workflows from './workflows';
 

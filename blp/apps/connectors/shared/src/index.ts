@@ -3,7 +3,7 @@ import { trace } from '@opentelemetry/api';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import type { RequestHandler } from 'express';
-import { initMetrics, initTracing } from '@haizel/api/observability';
+import { initMetrics, initTracing } from '@haizel/observability';
 
 export interface RetryOptions {
   retries?: number;

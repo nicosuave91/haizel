@@ -4,11 +4,12 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "ts-node src/index.ts",
     "test": "vitest"
   },
   "dependencies": {
+    "@haizel/observability": "workspace:^0.1.0",
     "@temporalio/worker": "^1.9.0",
     "@temporalio/workflow": "^1.9.0",
     "@temporalio/interceptors-opentelemetry": "^1.9.0",
