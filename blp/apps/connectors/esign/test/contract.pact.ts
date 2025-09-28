@@ -8,12 +8,33 @@ const provider = new Pact({
   provider: 'ESignConnector',
   dir: path.resolve(__dirname, '../../pacts'),
   spec: 3,
+  port: 0,
+  logLevel: 'warn',
 });
 
 describe('E-Sign connector Pact', () => {
-  beforeAll(() => provider.setup());
-  afterAll(() => provider.finalize());
-  afterEach(() => provider.verify());
+  beforeAll(async () => {
+    await provider.setup();
+  });
+
+  afterAll(async () => {
+    try {
+      await provider.finalize();
+    } finally {
+      const pactInternals = provider as unknown as {
+        pact?: { cleanupMockServer(port: number): boolean };
+        opts?: { port?: number };
+      };
+      const port = pactInternals.opts?.port;
+      if (pactInternals.pact && typeof port === 'number' && port > 0) {
+        pactInternals.pact.cleanupMockServer(port);
+      }
+    }
+  });
+
+  afterEach(async () => {
+    await provider.verify();
+  });
 
   it('creates envelopes for signing', async () => {
     await provider.addInteraction({
