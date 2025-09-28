@@ -1,0 +1,36 @@
+spec:
+  name: haizel-app
+  services:
+    - name: core-api
+      environment_slug: node-js
+      instance_count: 1
+      instance_size_slug: basic-xxs
+      source_dir: blp
+      build_command: corepack enable && pnpm install --frozen-lockfile && pnpm --filter core-api build
+      run_command: pnpm --filter core-api exec node dist/main.js
+      http_port: 3000
+      routes:
+        - path: /
+      envs:
+        - key: DATABASE_URL
+          type: SECRET
+          scope: RUN_TIME
+        - key: AUTH0_DOMAIN
+          type: GENERAL
+          scope: RUN_TIME
+        - key: AUTH0_CLIENT_ID
+          type: SECRET
+          scope: RUN_TIME
+        - key: AUTH0_CLIENT_SECRET
+          type: SECRET
+          scope: RUN_TIME
+        - key: AUTH0_AUDIENCE
+          type: GENERAL
+          scope: RUN_TIME
+        - key: AUTH0_ISSUER_BASE_URL
+          type: GENERAL
+          scope: RUN_TIME
+        - key: PORT
+          value: "3000"
+          type: GENERAL
+          scope: RUN_TIME
