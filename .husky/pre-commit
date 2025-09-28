@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+cd "$(dirname -- "$0")/../blp" || exit 1
+
+# If any package.json changed, regenerate the lockfile (lock-only) and add it
+if git diff --cached --name-only | grep -E '(^|/)package\.json$' >/dev/null; then
+  echo "package.json changed → refreshing pnpm-lock.yaml…"
+  pnpm install -w --lockfile-only
+  git add pnpm-lock.yaml
+fi
+
+# Optional: run a quick lock sanity check
+pnpm run lock:check
