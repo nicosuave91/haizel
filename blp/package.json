@@ -3,16 +3,11 @@
   "private": true,
   "packageManager": "pnpm@9.12.0",
   "engines": {
-    "node": "20.10.0",
-    "pnpm": "9.12.0"
+    "node": "20.10.0"
   },
-  "workspaces": [
-    "apps/*",
-    "libs/*"
-  ],
   "scripts": {
     "preinstall": "corepack enable && corepack prepare pnpm@9.12.0 --activate",
-    "lock:check": "node -e \"try{require('yaml').parse(require('fs').readFileSync('pnpm-lock.yaml','utf8'));process.exit(0)}catch(e){console.error(e.message);process.exit(1)}\"",
+    "lock:check": "node ./scripts/lock-check.js",
     "lock:regen": "git rm -f pnpm-lock.yaml || true && pnpm install -w --no-frozen-lockfile && pnpm dedupe -w && git add pnpm-lock.yaml",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
