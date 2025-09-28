@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy to config.json and edit values. Remove record entries you do not need (for example delete the AAAA block if you do not have an IPv6 target).",
+  "_cname_instructions": "To point the apex at a CNAME target instead of static IPs, delete the A/AAAA entries under '@' and set a single CNAME value (for example myapp.hosting.example.com.).",
+  "domain": "haizeltechnology.com",
+  "ttl": 600,
+  "records": {
+    "@": {
+      "A": [
+        "203.0.113.10"
+      ],
+      "AAAA": [
+        "2001:db8::10"
+      ]
+    },
+    "www": {
+      "CNAME": "@"
+    }
+  }
+}
