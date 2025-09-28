@@ -25,7 +25,8 @@
   },
   "devDependencies": {
     "typescript": "^5.4.0",
-    "rimraf": "^5.0.0"
+    "rimraf": "^5.0.0",
+    "@types/node": "^20.12.7"
   },
   "dependencies": {
     "@haizel/domain": "workspace:*",
