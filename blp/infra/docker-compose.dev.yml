@@ -18,6 +18,7 @@ x-node-service: &node-service
     MINIO_ROOT_PASSWORD: blpsecret
     CLAMAV_HOST: clamav
     CLAMAV_PORT: '3310'
+    OTEL_COLLECTOR_ENDPOINT: http://otel-collector:4318
 
 services:
   postgres:
@@ -138,6 +139,24 @@ services:
       - '8080:8080'
     depends_on:
       temporal:
+        condition: service_started
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    ports:
+      - '16686:16686'
+      - '14250:14250'
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.100.0
+    command: ['--config=/etc/otelcol/config.yaml']
+    volumes:
+      - ./otel-collector.dev.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+    depends_on:
+      jaeger:
         condition: service_started
 
   opa:

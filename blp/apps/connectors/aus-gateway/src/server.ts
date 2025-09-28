@@ -1,14 +1,19 @@
 import express from 'express';
 import helmet from 'helmet';
+import { createSpanEnrichmentMiddleware, initializeConnectorTelemetry } from '@haizel/connectors-shared';
 import { AUSGatewayService } from './service';
 import { AUSSubmissionRequest } from './mappers';
 
 const IDEMPOTENCY_HEADER = 'idempotency-key';
 
+const telemetryReady = initializeConnectorTelemetry('aus-gateway');
+
 export function createServer(service = new AUSGatewayService()) {
+  void telemetryReady;
   const app = express();
   app.use(helmet());
   app.use(express.json());
+  app.use(createSpanEnrichmentMiddleware());
 
   app.post('/api/v1/aus/submit', async (req, res) => {
     try {

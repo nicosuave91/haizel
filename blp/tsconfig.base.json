@@ -6,6 +6,10 @@
     "strict": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@haizel/api/observability": ["apps/api/src/observability/index.ts"]
+    }
   }
 }

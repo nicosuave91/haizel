@@ -1,6 +1,14 @@
 import { NativeConnection, Worker } from '@temporalio/worker';
 import { createRequire } from 'module';
 import { pathToFileURL } from 'url';
+import { Resource } from '@opentelemetry/resources';
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import {
+  OpenTelemetryActivityInboundInterceptor,
+  makeWorkflowExporter,
+} from '@temporalio/interceptors-opentelemetry';
+import { initTracing } from '@haizel/api/observability';
 import * as activities from './activities';
 import * as workflows from './workflows';
 
@@ -15,6 +23,28 @@ export async function runWorker(options: WorkerBootstrapOptions = {}): Promise<v
   const taskQueue = options.taskQueue ?? process.env.TEMPORAL_TASK_QUEUE ?? 'blp.default';
   const address = options.address ?? process.env.TEMPORAL_ADDRESS ?? 'localhost:7233';
 
+  const resource = Resource.default().merge(
+    new Resource({
+      [SemanticResourceAttributes.SERVICE_NAME]: 'worker',
+      [SemanticResourceAttributes.SERVICE_NAMESPACE]: 'blp',
+      [SemanticResourceAttributes.SERVICE_VERSION]: process.env.npm_package_version,
+      'deployment.environment': process.env.NODE_ENV ?? 'development',
+    }),
+  );
+
+  await initTracing({
+    serviceName: 'worker',
+    serviceVersion: process.env.npm_package_version,
+    resourceAttributes: {
+      'deployment.environment': process.env.NODE_ENV ?? 'development',
+    },
+  });
+
+  const otlpUrl =
+    process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ??
+    `${process.env.OTEL_COLLECTOR_ENDPOINT ?? 'http://otel-collector:4318'}/v1/traces`;
+  const workflowExporter = makeWorkflowExporter(new OTLPTraceExporter({ url: otlpUrl }), resource);
+
   const connection = await NativeConnection.connect({ address });
   const worker = await Worker.create({
     connection,
@@ -22,6 +52,17 @@ export async function runWorker(options: WorkerBootstrapOptions = {}): Promise<v
     workflows,
     activities,
     taskQueue,
+    sinks: {
+      opentelemetry: workflowExporter,
+    },
+    interceptors: {
+      activity: [
+        (ctx) => ({
+          inbound: new OpenTelemetryActivityInboundInterceptor(ctx),
+        }),
+      ],
+      workflowModules: [require.resolve('./telemetry/workflow-interceptors')],
+    },
   });
 
   try {

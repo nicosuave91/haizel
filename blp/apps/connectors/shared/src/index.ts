@@ -1,9 +1,70 @@
 import crypto from 'node:crypto';
+import { trace } from '@opentelemetry/api';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import type { RequestHandler } from 'express';
+import { initMetrics, initTracing } from '@haizel/api/observability';
 
 export interface RetryOptions {
   retries?: number;
   delayMs?: number;
   backoffFactor?: number;
+}
+
+let telemetryInit: Promise<void> | undefined;
+let telemetryServiceName: string | undefined;
+
+export function initializeConnectorTelemetry(serviceName: string): Promise<void> {
+  if (!telemetryInit || telemetryServiceName !== serviceName) {
+    telemetryServiceName = serviceName;
+    telemetryInit = initTracing({
+      serviceName,
+      serviceVersion: process.env.npm_package_version,
+      instrumentations: [
+        new HttpInstrumentation({ requireParentforOutgoingSpans: false }),
+        new ExpressInstrumentation({}),
+      ],
+      resourceAttributes: {
+        'deployment.environment': process.env.NODE_ENV ?? 'development',
+        'service.instance.id': process.env.HOSTNAME,
+      },
+    }).then(() => {
+      initMetrics({
+        serviceName,
+        serviceVersion: process.env.npm_package_version,
+        resourceAttributes: {
+          'deployment.environment': process.env.NODE_ENV ?? 'development',
+          'service.instance.id': process.env.HOSTNAME,
+        },
+      });
+    });
+  }
+  return telemetryInit;
+}
+
+export function createSpanEnrichmentMiddleware(): RequestHandler {
+  return (req, _res, next) => {
+    let requestId = req.header('x-request-id');
+    if (!requestId) {
+      requestId = crypto.randomUUID();
+      req.headers['x-request-id'] = requestId;
+    }
+
+    const span = trace.getActiveSpan();
+    if (span) {
+      span.setAttribute('http.request_id', requestId);
+      const tenantId = req.header('x-tenant-id');
+      if (tenantId) {
+        span.setAttribute('tenant.id', tenantId);
+      }
+      const vendorId = req.header('x-vendor-id') ?? req.header('x-partner-id');
+      if (vendorId) {
+        span.setAttribute('vendor.id', vendorId);
+      }
+    }
+
+    next();
+  };
 }
 
 export async function withRetries<T>(
