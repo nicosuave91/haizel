@@ -6,11 +6,11 @@ export interface ConditionsListProps {
   filterSeverity?: ConditionSummary['severity'][];
 }
 
-const severityColors: Record<ConditionSummary['severity'], string> = {
-  critical: '#ef4444',
-  high: '#f97316',
-  medium: '#facc15',
-  low: '#22c55e',
+const severityLabels: Record<ConditionSummary['severity'], string> = {
+  critical: 'Critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
 };
 
 export const ConditionsList: React.FC<ConditionsListProps> = ({ conditions, filterSeverity }) => {
@@ -28,10 +28,9 @@ export const ConditionsList: React.FC<ConditionsListProps> = ({ conditions, filt
         {filtered.map((condition) => (
           <li key={condition.code}>
             <span
-              className="conditions-list__severity"
-              style={{ backgroundColor: severityColors[condition.severity] }}
+              className={`conditions-list__severity conditions-list__severity--${condition.severity}`}
             >
-              {condition.severity.toUpperCase()}
+              {severityLabels[condition.severity]}
             </span>
             <div>
               <p className="conditions-list__description">{condition.description}</p>

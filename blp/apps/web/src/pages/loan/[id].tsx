@@ -4,6 +4,8 @@ import { WorkflowStepCard } from '../../components/WorkflowStepCard';
 import { ConditionsList } from '../../components/ConditionsList';
 import { DocManifest } from '../../components/DocManifest';
 import { CTCEvaluator } from '../../components/CTCEvaluator';
+
+import '../../styles/global.css';
 import type { WorkflowStepContract, ConditionSummary, ComplianceIssue } from '@haizel/domain';
 
 const mockSteps: WorkflowStepContract[] = [
@@ -80,6 +82,20 @@ const LoanDetailPage: React.FC = () => {
           <button type="button">Upload document</button>
         </div>
       </header>
+      <section className="loan-detail__callouts">
+        <div className="callout callout--action">
+          <h3>Action</h3>
+          <p>Upload income docs to unlock underwriting.</p>
+        </div>
+        <div className="callout callout--assist">
+          <h3>Assist</h3>
+          <p>We’ll highlight exactly what’s missing.</p>
+        </div>
+        <div className="callout callout--heads-up">
+          <h3>Heads up</h3>
+          <p>Appraisal needs verification before closing.</p>
+        </div>
+      </section>
       <section className="loan-detail__workflow">
         <h2>Workflow</h2>
         <div className="loan-detail__workflow-grid">

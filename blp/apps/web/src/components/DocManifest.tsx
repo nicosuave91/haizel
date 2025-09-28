@@ -7,11 +7,15 @@ export interface DocManifestProps {
 }
 
 export const DocManifest: React.FC<DocManifestProps> = ({ status, requiredDocs, onUpload }) => {
+  const statusLabel = status
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+
   return (
     <section className="doc-manifest">
       <header>
         <h3>Document Manifest</h3>
-        <span className={`doc-manifest__status doc-manifest__status--${status}`}>{status}</span>
+        <span className={`doc-manifest__status doc-manifest__status--${status}`}>{statusLabel}</span>
       </header>
       <ul>
         {requiredDocs.map((doc) => (
