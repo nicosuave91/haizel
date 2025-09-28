@@ -4,8 +4,8 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "prebuild": "dotenv -e ../../db/prisma/.env.build -- prisma format --schema ../../db/prisma/schema.prisma && dotenv -e ../../db/prisma/.env.build -- prisma validate --schema ../../db/prisma/schema.prisma && dotenv -e ../../db/prisma/.env.build -- prisma generate --schema ../../db/prisma/schema.prisma",
-    "build": "tsc -b tsconfig.build.json",
+    "prebuild": "prisma generate --schema ../../db/prisma/schema.prisma",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "test": "jest"
   },
