@@ -1,0 +1,36 @@
+name: lockfile-guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: blp
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.10.0'
+          cache: 'pnpm'
+          cache-dependency-path: blp/pnpm-lock.yaml
+
+      - name: Activate pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+          pnpm --version
+
+      - name: Validate lockfile
+        run: pnpm run lock:check
+
+      - name: Install dependencies
+        run: pnpm install -w --frozen-lockfile
