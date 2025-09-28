@@ -18,7 +18,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+      # Install pnpm first so setup-node's pnpm cache can resolve the store path
+      - name: Install pnpm (9.12.0)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+          run_install: false
       - name: Setup Node (20.10.0) with pnpm cache
         uses: actions/setup-node@v4
         with:
@@ -26,6 +31,24 @@ jobs:
           cache: pnpm
           cache-dependency-path: blp/pnpm-lock.yaml
 
+      - name: Sanity check toolchain
+        run: |
+          node -v
+          pnpm --version
+
+      - name: Install (fail on lockfile drift)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (respect workspace dependency order)
+        run: |
+          pnpm --filter @haizel/observability... run build
+          pnpm --filter @haizel/api...           run build
+          pnpm --filter @haizel/core-api...      run build
+
+      - name: Test
+        run: pnpm test --if-present
+
+      - name: Upload logs on failure
       - name: Enable Corepack & install pnpm
         run: |
           corepack enable
@@ -47,11 +70,13 @@ jobs:
         run: pnpm test --if-present
 
       - name: Upload build logs on failure
+
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: ci-logs
           path: |
+
             blp/npm-debug.log
             blp/pnpm-debug.log
             blp/**/dist/**
