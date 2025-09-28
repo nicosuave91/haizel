@@ -44,6 +44,15 @@ docker compose -f infra/docker-compose.dev.yml up --build
 
 The compose file provisions Postgres, Redis, Redpanda, Temporal (plus the UI), OPA, MinIO, and ClamAV alongside the Node.js connectors, the NestJS core API, the Temporal worker, and the FastAPI rules engine. The `postgres-migrate` one-shot service automatically applies the SQL migrations in `db/migrations/` and seeds reference data from `db/seed/` every time the stack starts, so the application containers boot with a ready-to-use schema.
 
+### Quality checks
+
+Run the workspace-level `pnpm` scripts from the `blp` directory to mirror what the GitHub Actions workflows expect before you push a branch:
+
+- `pnpm lint` executes `pnpm -r lint` across every workspace, matching the lint jobs in [Core API CI](blp/.github/workflows/ci-core.yml) and [Connectors CI](blp/.github/workflows/ci-connectors.yml).
+- `pnpm test` fans out to `pnpm -r test`, which aligns with the Node test suites triggered by both [Core API CI](blp/.github/workflows/ci-core.yml) and the connector matrix in [Connectors CI](blp/.github/workflows/ci-connectors.yml).
+- `pnpm -r build` ensures each package still builds (and therefore type-checks) before shipping, mirroring the build stage in [Core API CI](blp/.github/workflows/ci-core.yml).
+- `pnpm test:rls` runs `bash db/tests/run_rls_checks.sh`, which requires a running Postgres instance and a `DATABASE_URL` pointing at it (the compose stack provides this). Keeping the RLS policies passing prevents surprises when the API and connector tests in [Core API CI](blp/.github/workflows/ci-core.yml) and [Connectors CI](blp/.github/workflows/ci-connectors.yml) exercise the same tables.
+
 ### Useful service endpoints
 
 - Core API: <http://localhost:3000>
