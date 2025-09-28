@@ -1,0 +1,19 @@
+{
+  "name": "@haizel/db",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "prisma": "prisma",
+    "migrate:deploy": "prisma migrate deploy",
+    "generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.16.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.16.0"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  }
+}
