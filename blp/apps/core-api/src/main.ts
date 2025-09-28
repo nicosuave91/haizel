@@ -47,7 +47,8 @@ async function bootstrap() {
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
-  await app.listen(3000);
+  const port = Number.parseInt(process.env.PORT ?? '', 10) || 8080;
+  await app.listen(port);
 }
 
 bootstrap().catch(async (error) => {

@@ -1,0 +1,22 @@
+name: haizel-app
+services:
+  - name: core-api
+    source_dir: ./blp
+    http_port: 8080
+    routes:
+      - path: /api
+    build_command: corepack enable && pnpm install --frozen-lockfile && pnpm --filter core-api run build
+    run_command: pnpm --filter core-api run start
+    environment_slug: node-js
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+static_sites:
+  - name: web-app
+    source_dir: ./blp
+    build_command: corepack enable && pnpm install --frozen-lockfile && pnpm --filter web-app-react run build
+    output_dir: apps/web-app-react/dist
+    routes:
+      - path: /

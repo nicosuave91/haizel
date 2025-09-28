@@ -69,3 +69,23 @@ Stop the environment with `CTRL+C`. Use `docker compose -f infra/docker-compose.
 ## DNS automation
 
 GoDaddy DNS management for `haizeltechnology.com` lives under `infra/dns/godaddy_upsert/`. Copy the `config.example.json` file, tailor it to the desired apex/`www` routing strategy, and use the provided Makefile targets to dry-run, apply, and validate changes. Detailed operator instructions are available in [docs/domain_setup.md](docs/domain_setup.md).
+
+## DigitalOcean App Platform deployment
+
+The repository ships with an [app.yaml](app.yaml) App Spec that wires up the production builds for the customer-facing web app and the NestJS API. DigitalOcean can now detect the components automatically as long as the GitHub App has access to this repository. To update the running application:
+
+1. Install and authenticate the [DigitalOcean CLI (`doctl`)](https://docs.digitalocean.com/reference/doctl/how-to/install/).
+2. Apply the spec from the repository root:
+
+   ```bash
+   doctl apps update <APP_ID> --spec app.yaml
+   ```
+
+   Use `doctl apps create --spec app.yaml` the first time you spin up the stack.
+
+The spec defines two components:
+
+- **`core-api` service** – built from `./blp` with `pnpm --filter core-api run build` and started with `pnpm --filter core-api run start`. The NestJS server reads the `$PORT` environment variable (defaulting to `8080`) and exposes HTTP traffic under `/api`.
+- **`web-app` static site** – also built from `./blp`, producing the compiled assets in `apps/web-app-react/dist` for deployment at the root route (`/`).
+
+Because each component installs dependencies from the monorepo root, DigitalOcean's build jobs must keep access to the whole `blp/` workspace (the spec handles this by setting `source_dir: ./blp`).
