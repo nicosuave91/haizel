@@ -65,3 +65,7 @@ Run the workspace-level `pnpm` scripts from the `blp` directory to mirror what t
 - Postgres: `localhost:5432` (`blp:blp`)
 
 Stop the environment with `CTRL+C`. Use `docker compose -f infra/docker-compose.dev.yml down` to tear it down completely and remove the containers.
+
+## DNS automation
+
+GoDaddy DNS management for `haizeltechnology.com` lives under `infra/dns/godaddy_upsert/`. Copy the `config.example.json` file, tailor it to the desired apex/`www` routing strategy, and use the provided Makefile targets to dry-run, apply, and validate changes. Detailed operator instructions are available in [docs/domain_setup.md](docs/domain_setup.md).

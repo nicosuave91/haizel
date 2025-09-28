@@ -1,0 +1,27 @@
+name: DNS dry-run
+
+on:
+  pull_request:
+    paths:
+      - 'infra/dns/godaddy_upsert/**'
+      - 'docs/domain_setup.md'
+      - 'Makefile'
+      - '.github/workflows/dns_dryrun.yml'
+      - 'README.md'
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile Python scripts
+        run: python -m compileall infra/dns/godaddy_upsert
+      - name: Lint shell helper
+        run: shellcheck infra/dns/godaddy_upsert/validate.sh
+      - name: Dry-run updater against example config
+        run: python infra/dns/godaddy_upsert/godaddy_upsert.py --config infra/dns/godaddy_upsert/config.example.json --dry-run
