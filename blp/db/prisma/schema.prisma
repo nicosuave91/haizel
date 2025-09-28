@@ -90,6 +90,8 @@ model Tenant {
   documentCategories DocumentCategory[]
   ruleCategories RuleCategory[]
   ruleSets    RuleSet[]
+  ruleDefinitions RuleDefinition[]
+  ruleParameters  RuleParameter[]
   retentionPolicies RetentionPolicy[]
   retentionPolicyAssignments RetentionPolicyAssignment[]
   dataRetentionExemptions DataRetentionExemption[]
@@ -114,7 +116,7 @@ model User {
   createdAt  DateTime     @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime     @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
   memberships TenantUser[]
-  uploadedDocuments LoanDocument[]
+  uploadedDocuments LoanDocument[]  @relation("UserUploadedDocuments")
 
   @@map("users")
 }
@@ -167,9 +169,9 @@ model Loan {
   productType       String?       @map("product_type")
   purpose           String?
   status            LoanStatus    @default(draft)
-  requestedAmount   Decimal       @map("requested_amount") @db.Numeric(16, 2)
+  requestedAmount   Decimal       @map("requested_amount") @db.Decimal(16, 2)
   currencyCode      String        @map("currency_code") @db.Char(3)
-  interestRate      Decimal?      @map("interest_rate") @db.Numeric(7, 4)
+  interestRate      Decimal?      @map("interest_rate") @db.Decimal(7, 4)
   submittedAt       DateTime?     @map("submitted_at") @db.Timestamptz(6)
   decisionedAt      DateTime?     @map("decisioned_at") @db.Timestamptz(6)
   fundedAt          DateTime?     @map("funded_at") @db.Timestamptz(6)
@@ -194,7 +196,7 @@ model LoanBorrower {
   loanId        String    @map("loan_id") @db.Uuid
   borrowerId    String    @map("borrower_id") @db.Uuid
   isPrimary     Boolean   @map("is_primary") @default(false)
-  ownershipPercent Decimal? @map("ownership_percent") @db.Numeric(5, 2)
+  ownershipPercent Decimal? @map("ownership_percent") @db.Decimal(5, 2)
   createdAt     DateTime  @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
   tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -225,6 +227,7 @@ model DocumentCategory {
 model LoanDocument {
   id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId           String        @map("tenant_id") @db.Uuid
+  uploaderId         String?       @map("uploader_id") @db.Uuid
   loanId             String        @map("loan_id") @db.Uuid
   borrowerId         String?       @map("borrower_id") @db.Uuid
   documentCategoryId String        @map("document_category_id") @db.Uuid
@@ -240,6 +243,7 @@ model LoanDocument {
   createdAt          DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
   tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploader           User?         @relation("UserUploadedDocuments", fields: [uploaderId], references: [id], onDelete: SetNull)
   loan               Loan          @relation(fields: [tenantId, loanId], references: [tenantId, id], onDelete: Cascade)
   borrower           Borrower?     @relation(fields: [tenantId, borrowerId], references: [tenantId, id])
   category           DocumentCategory @relation(fields: [documentCategoryId], references: [id])
@@ -248,6 +252,7 @@ model LoanDocument {
   @@unique([tenantId, id])
   @@index([loanId], map: "idx_loan_documents_loan_id")
   @@index([status], map: "idx_loan_documents_status")
+  @@index([uploaderId])
   @@map("loan_documents")
 }
 
@@ -286,6 +291,7 @@ model RuleCategory {
   ruleSets    RuleSet[]
 
   @@unique([tenantId, code])
+  @@unique([tenantId, id])
   @@map("rule_categories")
 }
 
@@ -307,6 +313,7 @@ model RuleSet {
 
   @@unique([tenantId, code])
   @@unique([tenantId, id])
+  @@index([tenantId, categoryId])
   @@index([tenantId, triggerEvent, isActive], map: "idx_rule_sets_event_active")
   @@map("rule_sets")
 }
