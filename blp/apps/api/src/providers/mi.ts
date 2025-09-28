@@ -40,7 +40,11 @@ export class RealMortgageInsuranceProvider implements MortgageInsuranceProvider 
   constructor(private readonly client: VendorHttpClient) {}
 
   async quote(ctx: ProviderContext, request: MortgageInsuranceQuoteRequest): Promise<MortgageInsuranceQuoteResponse> {
-    const { data } = await this.client.call<ExternalMiQuoteRequest, MortgageInsuranceQuoteResponse>(
+    const { data } = await this.client.call<
+      MortgageInsuranceQuoteRequest,
+      ExternalMiQuoteRequest,
+      MortgageInsuranceQuoteResponse
+    >(
       {
         ctx,
         vendor: 'mi',

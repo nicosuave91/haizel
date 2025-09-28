@@ -133,12 +133,12 @@ export interface HttpResponse {
 
 export type HttpCaller = (request: HttpRequest) => Promise<HttpResponse>;
 
-export interface VendorHttpCallOptions<TRequest> {
+export interface VendorHttpCallOptions<TPayload, TRequest = TPayload> {
   ctx: ProviderContext;
   vendor: VendorKind;
   operation: string;
   idempotencyKey: string;
-  request: TRequest;
+  request: TPayload;
   path: string;
   method?: string;
   redactFields?: string[];
@@ -254,10 +254,10 @@ export class VendorHttpClient {
     private readonly breaker: CircuitBreaker = new CircuitBreaker(),
   ) {}
 
-  async call<TRequest, TResponse = unknown>(
-    options: VendorHttpCallOptions<TRequest>,
+  async call<TPayload, TRequest = TPayload, TResponse = unknown>(
+    options: VendorHttpCallOptions<TPayload, TRequest>,
     transform: {
-      request?: (payload: TRequest, credential: VendorCredential) => unknown;
+      request?: (payload: TPayload, credential: VendorCredential) => TRequest;
       response?: (payload: unknown, response: HttpResponse) => TResponse;
       onSuccess?: (payload: TResponse, raw: unknown) => Promise<void> | void;
       successEvent?: { name: VendorEventName; payload: (data: TResponse) => Record<string, unknown> };
