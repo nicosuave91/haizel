@@ -1,47 +1,62 @@
-name: ci
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  build-test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: blp
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup Node
+      # Install pnpm first so setup-node's pnpm cache can resolve the store path
+      - name: Install pnpm (9.12.0)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+          run_install: false
+
+      - name: Setup Node (20.10.0) with pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: 20.10.0
           cache: pnpm
           cache-dependency-path: blp/pnpm-lock.yaml
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9.12.0
-
-      - name: Check pnpm version
-        run: pnpm --version
-
-      - name: Debug pnpm PATH
+      - name: Sanity check toolchain
         run: |
-          which pnpm || true
-          echo "PATH=$PATH"
           node -v
-          pnpm -v
+          pnpm --version
 
-      - name: Install dependencies
-        run: pnpm install -w --frozen-lockfile
+      - name: Install (fail on lockfile drift)
+        run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm -r run build
+      - name: Build (respect workspace dependency order)
+        run: |
+          pnpm --filter @haizel/observability... run build
+          pnpm --filter @haizel/api...           run build
+          pnpm --filter @haizel/core-api...      run build
 
       - name: Test
-        run: pnpm -r run test --if-present
+        run: pnpm test --if-present
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: |
+            blp/pnpm-debug.log
+            blp/**/dist/**
+          if-no-files-found: ignore

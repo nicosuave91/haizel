@@ -16,36 +16,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.10.0'
-          cache: 'pnpm'
-          cache-dependency-path: blp/pnpm-lock.yaml
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - name: Install pnpm (9.12.0)
+        uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
+          run_install: false
 
-      - name: Activate corepack pin
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.0 --activate
-          pnpm --version
+      - name: Setup Node (20.10.0) with pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.10.0
+          cache: pnpm
+          cache-dependency-path: blp/pnpm-lock.yaml
 
-      - name: Debug pnpm PATH
+      - name: Sanity check toolchain
         run: |
-          which pnpm || true
-          echo "PATH=$PATH"
           node -v
-          pnpm -v
+          pnpm --version
 
       - name: Validate lockfile
         run: pnpm run lock:check
 
-      - name: Install dependencies
-        run: pnpm install -w --frozen-lockfile
+      - name: Install dependencies (fail on lockfile drift)
+        run: pnpm install --frozen-lockfile
