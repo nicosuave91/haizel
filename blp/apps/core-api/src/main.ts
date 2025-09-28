@@ -48,8 +48,11 @@ async function bootstrap() {
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
-  const port = Number.parseInt(process.env.PORT ?? '', 10) || 8080;
-  await app.listen(port);
+  const port = Number.parseInt(process.env.PORT ?? '8080', 10);
+  const host = '0.0.0.0';
+  await app.listen(port, host);
+  // eslint-disable-next-line no-console
+  console.log(`Core API listening on http://${host}:${port}`);
 }
 
 bootstrap().catch(async (error) => {

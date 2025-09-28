@@ -1,0 +1,1 @@
+web: pnpm --filter @haizel/core-api run start
