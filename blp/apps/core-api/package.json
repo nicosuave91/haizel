@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "jest",
-    "prisma:generate": "node ./scripts/prepare-prisma.mjs && prisma generate"
+    "prisma:generate": "node ./scripts/prepare-prisma.mjs && prisma generate",
+    "prisma:vendor": "node ./scripts/sync-vendored-prisma.mjs"
   },
   "dependencies": {
     "@haizel/api": "workspace:*",

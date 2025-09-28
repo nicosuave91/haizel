@@ -15,7 +15,7 @@ The Prisma CLI downloads platform-specific query engine binaries during `prisma 
    ```
 3. Copy the generated payload into the vendored directory so it can be checked in:
    ```bash
-   rsync -a apps/core-api/node_modules/.prisma/client/ apps/core-api/prisma/generated/client/
+   pnpm --filter core-api run prisma:vendor
    ```
 4. Commit the updated vendored client alongside any schema or Prisma version changes.
 5. Run the prepared wrapper to stage the engine for subsequent `prisma generate` executions (local or CI):

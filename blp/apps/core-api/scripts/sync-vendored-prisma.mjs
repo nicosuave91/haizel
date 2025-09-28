@@ -7,19 +7,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..');
-const vendoredDir = path.join(projectRoot, 'prisma', 'generated', 'client');
-const nodeModulesDir = path.join(projectRoot, 'node_modules', '.prisma');
-const targetDir = path.join(nodeModulesDir, 'client');
+const generatedDir = path.join(projectRoot, 'prisma', 'generated', 'client');
+const installedDir = path.join(projectRoot, 'node_modules', '.prisma', 'client');
 
-if (!fs.existsSync(vendoredDir)) {
-  console.error(`Vendored Prisma client not found at ${vendoredDir}.`);
-  console.error('Run the refresh procedure to update the generated client before invoking Prisma.');
+if (!fs.existsSync(installedDir)) {
+  console.error(`Expected Prisma output at ${installedDir}, but it was not found.`);
+  console.error('Run `pnpm --filter core-api exec prisma generate --binary-target=debian-openssl-3.0.x` first.');
   process.exit(1);
 }
 
-fs.rmSync(targetDir, { recursive: true, force: true });
-fs.mkdirSync(nodeModulesDir, { recursive: true });
-fs.cpSync(vendoredDir, targetDir, { recursive: true, force: true, verbatimSymlinks: true });
+fs.rmSync(generatedDir, { recursive: true, force: true });
+fs.mkdirSync(generatedDir, { recursive: true });
+fs.cpSync(installedDir, generatedDir, { recursive: true, force: true, verbatimSymlinks: true });
 
 const preservePermissions = (srcDir, destDir) => {
   for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
@@ -33,4 +32,4 @@ const preservePermissions = (srcDir, destDir) => {
   }
 };
 
-preservePermissions(vendoredDir, targetDir);
+preservePermissions(installedDir, generatedDir);
