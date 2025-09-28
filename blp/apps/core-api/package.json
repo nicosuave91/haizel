@@ -1,5 +1,5 @@
 {
-  "name": "core-api",
+  "name": "@haizel/core-api",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/main.js",
