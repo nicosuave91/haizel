@@ -18,22 +18,25 @@ export class AusService {
 
   async run(context: RequestContext, loanId: string, dto: AusRunDto) {
     await this.opa.authorize(context.user, { action: 'aus:run', resourceTenant: context.tenantId });
-    const loan = await this.prisma.loan.findUnique({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-    });
+    const loan = await this.prisma.findLoanModel(context.tenantId, loanId);
     if (!loan) {
       throw new NotFoundException('Loan not found');
     }
 
-    const decision = loan.amount > 500000 ? 'Refer' : 'Approve';
-    const result = await this.prisma.ausResult.create({
-      data: {
-        tenantId: context.tenantId,
-        loanId,
-        engine: dto.engine,
-        decision,
-      },
-    });
+    const requestedAmount = Number(loan.requestedAmount);
+    const decision = requestedAmount > 500000 ? 'Refer' : 'Approve';
+    const result = await this.prisma.transaction((tx) =>
+      this.prisma.recordAusResult(
+        loan,
+        {
+          engine: dto.engine,
+          decision,
+          requestId: context.requestId,
+          actorId: context.user.sub,
+        },
+        tx,
+      ),
+    );
 
     this.events.emit({
       type: 'aus.completed',

@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { getTracer } from '@haizel/api/observability';
-import type { Span } from '@haizel/api/observability';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { DocumentCategory, LoanTask, LoanStatus, Prisma, PrismaClient, Tenant } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import {
   AusResultEntity,
@@ -10,255 +9,389 @@ import {
   PricingLockEntity,
 } from './interfaces';
 
-interface LoanCreateInput {
-  tenantId: string;
-  borrowerName: string;
-  amount: number;
+const DEFAULT_TIMEZONE = 'UTC';
+const DEFAULT_DOCUMENT_CATEGORY_CODE = 'general';
+const DEFAULT_DOCUMENT_CATEGORY_NAME = 'General Documents';
+const PRICING_LOCK_TASK_TITLE = 'pricing-lock';
+
+type LoanWithRelations = Prisma.LoanGetPayload<{
+  include: { tenant: true; primaryBorrower: true };
+}>;
+
+type PrismaTransaction = Prisma.TransactionClient;
+
+type LoanDocumentWithMetadata = Prisma.LoanDocumentGetPayload<{ include: { tenant: true } }>;
+
+function toNumber(value: Prisma.Decimal | number): number {
+  return typeof value === 'number' ? value : Number(value);
 }
 
-interface LoanUpdateInput {
-  status?: LoanEntity['status'];
-  pricingLockId?: string | null;
-}
-
-interface DocumentCreateInput {
-  tenantId: string;
-  loanId: string;
-  name: string;
-  contentType: string;
-  storageKey: string;
-}
-
-interface PricingLockCreateInput {
-  tenantId: string;
-  loanId: string;
-  rate: number;
-  expiresAt: Date;
-}
-
-interface AusCreateInput {
-  tenantId: string;
-  loanId: string;
-  engine: string;
-  decision: string;
-}
-
-interface CreditCreateInput {
-  tenantId: string;
-  loanId: string;
-  bureau: string;
-  score: number;
+function toDocumentMetadata(value: Prisma.JsonValue | null | undefined): Prisma.JsonObject {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Prisma.JsonObject;
 }
 
 @Injectable()
-export class PrismaService {
-  private readonly loans = new Map<string, LoanEntity>();
-  private readonly documents = new Map<string, DocumentEntity>();
-  private readonly pricingLocks = new Map<string, PricingLockEntity>();
-  private readonly ausResults = new Map<string, AusResultEntity>();
-  private readonly creditReports = new Map<string, CreditReportEntity>();
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  async onModuleInit(): Promise<void> {
+    await this.$connect();
+  }
 
-  private instrument<T>(operation: string, attributes: Record<string, unknown>, callback: () => Promise<T>): Promise<T> {
-    const tracer = getTracer();
-    return tracer.startSpan(`prisma.${operation}`, async (span: Span) => {
-      span.setAttribute('db.system', 'inmemory');
-      span.setAttribute('db.operation', operation);
-      for (const [key, value] of Object.entries(attributes)) {
-        if (value === undefined || value === null) {
-          continue;
-        }
-        const attributeKey = typeof value === 'string' ? `db.${key}` : `db.${key}`;
-        span.setAttribute(attributeKey, value as never);
-        if (key.toLowerCase().includes('tenant')) {
-          span.setAttribute('tenant.id', value as never);
-        }
-        if (key.toLowerCase().includes('loan')) {
-          span.setAttribute('loan.id', value as never);
-        }
-      }
-      return callback();
+  async onModuleDestroy(): Promise<void> {
+    await this.$disconnect();
+  }
+
+  async transaction<T>(handler: (tx: PrismaTransaction) => Promise<T>): Promise<T> {
+    return this.$transaction((client) => handler(client));
+  }
+
+  async ensureTenant(slug: string, tx: PrismaTransaction = this): Promise<Tenant> {
+    const existing = await tx.tenant.findUnique({ where: { slug } });
+    if (existing) {
+      return existing;
+    }
+    return tx.tenant.create({
+      data: {
+        slug,
+        displayName: slug,
+        timezone: DEFAULT_TIMEZONE,
+      },
     });
   }
 
-  public readonly loan = {
-    findMany: async ({
-      where,
-    }: {
-      where: { tenantId: string };
-    }): Promise<LoanEntity[]> =>
-      this.instrument('loan.findMany', { tenantId: where.tenantId }, async () =>
-        Array.from(this.loans.values()).filter((loan) => loan.tenantId === where.tenantId),
-      ),
-    findUnique: async ({
-      where,
-    }: {
-      where: { id_tenantId: { id: string; tenantId: string } };
-    }): Promise<LoanEntity | null> =>
-      this.instrument(
-        'loan.findUnique',
-        { tenantId: where.id_tenantId.tenantId, loanId: where.id_tenantId.id },
-        async () => {
-          const loan = this.loans.get(where.id_tenantId.id);
-          if (!loan || loan.tenantId !== where.id_tenantId.tenantId) {
-            return null;
-          }
-          return loan;
+  async getTenantBySlug(slug: string, tx: PrismaTransaction = this): Promise<Tenant | null> {
+    return tx.tenant.findUnique({ where: { slug } });
+  }
+
+  async createLoan(
+    tenantSlug: string,
+    dto: { borrowerName: string; amount: number },
+  ): Promise<LoanEntity> {
+    return this.transaction(async (innerTx) => {
+      const tenant = await this.ensureTenant(tenantSlug, innerTx);
+      const borrower = await innerTx.borrower.create({
+        data: {
+          tenantId: tenant.id,
+          type: 'individual',
+          legalName: dto.borrowerName,
         },
-      ),
-    create: async ({ data }: { data: LoanCreateInput }): Promise<LoanEntity> =>
-      this.instrument('loan.create', { tenantId: data.tenantId }, async () => {
-        const now = new Date();
-        const loan: LoanEntity = {
-          id: randomUUID(),
-          tenantId: data.tenantId,
-          borrowerName: data.borrowerName,
-          amount: data.amount,
-          status: 'draft',
-          createdAt: now,
-          updatedAt: now,
-        };
-        this.loans.set(loan.id, loan);
-        return loan;
-      }),
-    update: async ({
-      where,
-      data,
-    }: {
-      where: { id_tenantId: { id: string; tenantId: string } };
-      data: LoanUpdateInput;
-    }): Promise<LoanEntity> =>
-      this.instrument(
-        'loan.update',
-        { tenantId: where.id_tenantId.tenantId, loanId: where.id_tenantId.id },
-        async () => {
-          const loan = await this.loan.findUnique({ where });
-          if (!loan) {
-            throw new Error('Loan not found');
-          }
-          const updated: LoanEntity = {
-            ...loan,
-            ...data,
-            updatedAt: new Date(),
-          };
-          if (data.pricingLockId === null) {
-            delete updated.pricingLockId;
-          }
-          this.loans.set(updated.id, updated);
-          return updated;
+      });
+
+      const loan = await innerTx.loan.create({
+        data: {
+          tenantId: tenant.id,
+          primaryBorrowerId: borrower.id,
+          loanNumber: this.generateLoanNumber(),
+          requestedAmount: new Prisma.Decimal(dto.amount),
+          currencyCode: 'USD',
+          status: LoanStatus.draft,
         },
-      ),
-  };
+        include: { tenant: true, primaryBorrower: true },
+      });
 
-  public readonly document = {
-    findMany: async ({
-      where,
-    }: {
-      where: { tenantId: string; loanId: string };
-    }): Promise<DocumentEntity[]> =>
-      this.instrument('document.findMany', { tenantId: where.tenantId, loanId: where.loanId }, async () =>
-        Array.from(this.documents.values()).filter(
-          (doc) => doc.tenantId === where.tenantId && doc.loanId === where.loanId,
-        ),
-      ),
-    create: async ({ data }: { data: DocumentCreateInput }): Promise<DocumentEntity> =>
-      this.instrument('document.create', { tenantId: data.tenantId, loanId: data.loanId }, async () => {
-        const versions = Array.from(this.documents.values()).filter(
-          (doc) => doc.tenantId === data.tenantId && doc.loanId === data.loanId && doc.name === data.name,
-        );
-        const document: DocumentEntity = {
-          id: randomUUID(),
-          tenantId: data.tenantId,
-          loanId: data.loanId,
-          name: data.name,
-          contentType: data.contentType,
-          storageKey: data.storageKey,
-          version: versions.length + 1,
-          createdAt: new Date(),
-        };
-        this.documents.set(document.id, document);
-        return document;
-      }),
-  };
-
-  public readonly pricingLock = {
-    findUnique: async ({
-      where,
-    }: {
-      where: { id_tenantId: { id: string; tenantId: string } };
-    }): Promise<PricingLockEntity | null> =>
-      this.instrument(
-        'pricingLock.findUnique',
-        { tenantId: where.id_tenantId.tenantId, loanId: where.id_tenantId.id },
-        async () => {
-          const lock = this.pricingLocks.get(where.id_tenantId.id);
-          if (!lock || lock.tenantId !== where.id_tenantId.tenantId) {
-            return null;
-          }
-          return lock;
+      await innerTx.loanBorrower.create({
+        data: {
+          tenantId: tenant.id,
+          loanId: loan.id,
+          borrowerId: borrower.id,
+          isPrimary: true,
         },
-      ),
-    create: async ({ data }: { data: PricingLockCreateInput }): Promise<PricingLockEntity> =>
-      this.instrument('pricingLock.create', { tenantId: data.tenantId, loanId: data.loanId }, async () => {
-        const lock: PricingLockEntity = {
-          id: randomUUID(),
-          tenantId: data.tenantId,
-          loanId: data.loanId,
-          rate: data.rate,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        };
-        this.pricingLocks.set(lock.id, lock);
-        return lock;
-      }),
-  };
+      });
 
-  public readonly ausResult = {
-    create: async ({ data }: { data: AusCreateInput }): Promise<AusResultEntity> =>
-      this.instrument('ausResult.create', { tenantId: data.tenantId, loanId: data.loanId }, async () => {
-        const result: AusResultEntity = {
-          id: randomUUID(),
-          tenantId: data.tenantId,
-          loanId: data.loanId,
-          engine: data.engine,
-          decision: data.decision,
-          createdAt: new Date(),
-        };
-        this.ausResults.set(result.id, result);
-        return result;
-      }),
-    findMany: async ({
-      where,
-    }: {
-      where: { loanId: string; tenantId: string };
-    }): Promise<AusResultEntity[]> =>
-      this.instrument('ausResult.findMany', { tenantId: where.tenantId, loanId: where.loanId }, async () =>
-        Array.from(this.ausResults.values()).filter(
-          (result) => result.tenantId === where.tenantId && result.loanId === where.loanId,
-        ),
-      ),
-  };
+      return this.mapLoanEntity(loan);
+    });
+  }
 
-  public readonly creditReport = {
-    create: async ({ data }: { data: CreditCreateInput }): Promise<CreditReportEntity> =>
-      this.instrument('creditReport.create', { tenantId: data.tenantId, loanId: data.loanId }, async () => {
-        const report: CreditReportEntity = {
-          id: randomUUID(),
-          tenantId: data.tenantId,
-          loanId: data.loanId,
-          bureau: data.bureau,
-          score: data.score,
-          createdAt: new Date(),
-        };
-        this.creditReports.set(report.id, report);
-        return report;
-      }),
-    findMany: async ({
-      where,
-    }: {
-      where: { loanId: string; tenantId: string };
-    }): Promise<CreditReportEntity[]> =>
-      Array.from(this.creditReports.values()).filter(
-        (report) => report.tenantId === where.tenantId && report.loanId === where.loanId,
-      ),
-  };
+  async findLoanModel(
+    tenantSlug: string,
+    loanId: string,
+    tx: PrismaTransaction = this,
+  ): Promise<LoanWithRelations | null> {
+    return tx.loan.findFirst({
+      where: {
+        id: loanId,
+        tenant: { slug: tenantSlug },
+      },
+      include: { tenant: true, primaryBorrower: true },
+    });
+  }
+
+  async getLoanEntity(
+    tenantSlug: string,
+    loanId: string,
+    tx: PrismaTransaction = this,
+  ): Promise<LoanEntity | null> {
+    const loan = await this.findLoanModel(tenantSlug, loanId, tx);
+    if (!loan) {
+      return null;
+    }
+    const lock = await this.findLatestPricingLock(loan, tx);
+    return this.mapLoanEntity(loan, lock);
+  }
+
+  async listLoanEntities(tenantSlug: string, tx: PrismaTransaction = this): Promise<LoanEntity[]> {
+    const tenant = await this.getTenantBySlug(tenantSlug, tx);
+    if (!tenant) {
+      return [];
+    }
+
+    const loans = await tx.loan.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: { createdAt: 'asc' },
+      include: { tenant: true, primaryBorrower: true },
+    });
+
+    const locks = await tx.loanTask.findMany({
+      where: { tenantId: tenant.id, title: PRICING_LOCK_TASK_TITLE },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const lockMap = new Map<string, LoanTask>();
+    for (const lock of locks) {
+      if (!lockMap.has(lock.loanId)) {
+        lockMap.set(lock.loanId, lock);
+      }
+    }
+
+    return loans.map((loan) => this.mapLoanEntity(loan, lockMap.get(loan.id) ?? null));
+  }
+
+  async recordPricingLock(
+    loan: LoanWithRelations,
+    rate: number,
+    expiresAt: Date,
+    tx: PrismaTransaction = this,
+  ): Promise<PricingLockEntity> {
+    const task = await tx.loanTask.create({
+      data: {
+        tenantId: loan.tenantId,
+        loanId: loan.id,
+        title: PRICING_LOCK_TASK_TITLE,
+        description: JSON.stringify({ rate }),
+        status: 'open',
+        priority: 'high',
+        dueDate: expiresAt,
+      },
+    });
+    return this.mapPricingLock(task, loan.tenant.slug);
+  }
+
+  async findLatestPricingLock(
+    loan: LoanWithRelations,
+    tx: PrismaTransaction = this,
+  ): Promise<PricingLockEntity | null> {
+    const task = await tx.loanTask.findFirst({
+      where: {
+        tenantId: loan.tenantId,
+        loanId: loan.id,
+        title: PRICING_LOCK_TASK_TITLE,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return task ? this.mapPricingLock(task, loan.tenant.slug) : null;
+  }
+
+  async createDocument(
+    loan: LoanWithRelations,
+    dto: { name: string; contentType: string; storageKey: string },
+    tx: PrismaTransaction = this,
+  ): Promise<DocumentEntity> {
+    const category = await this.ensureDocumentCategory(loan.tenantId, tx);
+    const version =
+      (await tx.loanDocument.count({
+        where: { tenantId: loan.tenantId, loanId: loan.id, fileName: dto.name },
+      })) + 1;
+
+    const metadata: Prisma.JsonObject = {
+      version,
+      contentType: dto.contentType,
+    };
+
+    const document = await tx.loanDocument.create({
+      data: {
+        tenantId: loan.tenantId,
+        loanId: loan.id,
+        documentCategoryId: category.id,
+        fileName: dto.name,
+        storageUri: dto.storageKey,
+        metadata,
+      },
+      include: { tenant: true },
+    });
+
+    return this.mapDocumentEntity(document);
+  }
+
+  async listDocuments(
+    loan: LoanWithRelations,
+    tx: PrismaTransaction = this,
+  ): Promise<DocumentEntity[]> {
+    const documents = await tx.loanDocument.findMany({
+      where: { tenantId: loan.tenantId, loanId: loan.id },
+      orderBy: { createdAt: 'asc' },
+      include: { tenant: true },
+    });
+    return documents.map((document) => this.mapDocumentEntity(document));
+  }
+
+  async recordAusResult(
+    loan: LoanWithRelations,
+    params: { engine: string; decision: string; requestId?: string; actorId?: string },
+    tx: PrismaTransaction = this,
+  ): Promise<AusResultEntity> {
+    const metadata: Prisma.JsonObject = {
+      engine: params.engine,
+      decision: params.decision,
+    };
+
+    const event = await tx.auditEvent.create({
+      data: {
+        tenantId: loan.tenantId,
+        actorType: 'system',
+        actorId: params.actorId,
+        action: 'aus.run',
+        entityType: 'loan',
+        entityId: loan.id,
+        entityExternalId: loan.loanNumber,
+        metadata,
+        requestId: params.requestId,
+      },
+    });
+
+    return {
+      id: event.id,
+      tenantId: loan.tenant.slug,
+      loanId: loan.id,
+      engine: params.engine,
+      decision: params.decision,
+      createdAt: event.occurredAt,
+    };
+  }
+
+  async recordCreditReport(
+    loan: LoanWithRelations,
+    params: { bureau: string; score: number; requestId?: string; actorId?: string },
+    tx: PrismaTransaction = this,
+  ): Promise<CreditReportEntity> {
+    const metadata: Prisma.JsonObject = {
+      bureau: params.bureau,
+      score: params.score,
+    };
+
+    const event = await tx.auditEvent.create({
+      data: {
+        tenantId: loan.tenantId,
+        actorType: 'system',
+        actorId: params.actorId,
+        action: 'credit.pull',
+        entityType: 'loan',
+        entityId: loan.id,
+        entityExternalId: loan.loanNumber,
+        metadata,
+        requestId: params.requestId,
+      },
+    });
+
+    return {
+      id: event.id,
+      tenantId: loan.tenant.slug,
+      loanId: loan.id,
+      bureau: params.bureau,
+      score: params.score,
+      createdAt: event.occurredAt,
+    };
+  }
+
+  private mapLoanEntity(loan: LoanWithRelations, lock?: PricingLockEntity | null): LoanEntity {
+    const entity: LoanEntity = {
+      id: loan.id,
+      tenantId: loan.tenant.slug,
+      borrowerName: loan.primaryBorrower.legalName,
+      amount: toNumber(loan.requestedAmount),
+      status: this.mapLoanStatus(loan.status),
+      createdAt: loan.createdAt,
+      updatedAt: loan.updatedAt,
+    };
+
+    entity.pricingLockId = lock?.id ?? null;
+
+    return entity;
+  }
+
+  private mapLoanStatus(status: LoanStatus): LoanEntity['status'] {
+    switch (status) {
+      case LoanStatus.draft:
+        return 'draft';
+      case LoanStatus.submitted:
+        return 'submitted';
+      default:
+        return 'locked';
+    }
+  }
+
+  private mapPricingLock(task: LoanTask, tenantSlug: string): PricingLockEntity {
+    let rate: number | undefined;
+    try {
+      const payload = JSON.parse(task.description ?? '{}');
+      if (typeof payload.rate === 'number') {
+        rate = payload.rate;
+      }
+    } catch {
+      // ignore parse errors and fall back to default
+    }
+
+    return {
+      id: task.id,
+      tenantId: tenantSlug,
+      loanId: task.loanId,
+      rate: rate ?? 0,
+      expiresAt: task.dueDate ?? task.createdAt,
+      createdAt: task.createdAt,
+    };
+  }
+
+  private mapDocumentEntity(document: LoanDocumentWithMetadata): DocumentEntity {
+    const metadata = toDocumentMetadata(document.metadata);
+    const version = typeof metadata.version === 'number' ? metadata.version : 1;
+    const contentType =
+      typeof metadata.contentType === 'string' ? metadata.contentType : 'application/octet-stream';
+
+    return {
+      id: document.id,
+      tenantId: document.tenant.slug,
+      loanId: document.loanId,
+      name: document.fileName,
+      contentType,
+      version,
+      storageKey: document.storageUri,
+      createdAt: document.createdAt,
+    };
+  }
+
+  private async ensureDocumentCategory(
+    tenantId: string,
+    tx: PrismaTransaction,
+  ): Promise<DocumentCategory> {
+    const existing = await tx.documentCategory.findFirst({
+      where: { tenantId, code: DEFAULT_DOCUMENT_CATEGORY_CODE },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return tx.documentCategory.create({
+      data: {
+        tenantId,
+        code: DEFAULT_DOCUMENT_CATEGORY_CODE,
+        displayName: DEFAULT_DOCUMENT_CATEGORY_NAME,
+      },
+    });
+  }
+
+  private generateLoanNumber(): string {
+    return `LN-${randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`;
+  }
 }

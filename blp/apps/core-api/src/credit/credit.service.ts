@@ -18,22 +18,25 @@ export class CreditService {
 
   async pull(context: RequestContext, loanId: string, dto: CreditRequestDto) {
     await this.opa.authorize(context.user, { action: 'credit:pull', resourceTenant: context.tenantId });
-    const loan = await this.prisma.loan.findUnique({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-    });
+    const loan = await this.prisma.findLoanModel(context.tenantId, loanId);
     if (!loan) {
       throw new NotFoundException('Loan not found');
     }
 
-    const score = Math.max(600, Math.min(loan.amount / 1000 + 500, 850));
-    const report = await this.prisma.creditReport.create({
-      data: {
-        tenantId: context.tenantId,
-        loanId,
-        bureau: dto.bureau,
-        score: Math.round(score),
-      },
-    });
+    const requestedAmount = Number(loan.requestedAmount);
+    const score = Math.max(600, Math.min(requestedAmount / 1000 + 500, 850));
+    const report = await this.prisma.transaction((tx) =>
+      this.prisma.recordCreditReport(
+        loan,
+        {
+          bureau: dto.bureau,
+          score: Math.round(score),
+          requestId: context.requestId,
+          actorId: context.user.sub,
+        },
+        tx,
+      ),
+    );
 
     this.events.emit({
       type: 'credit.pulled',
