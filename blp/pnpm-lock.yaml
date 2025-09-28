@@ -17,60 +17,22 @@ importers:
 
   apps/api:
     dependencies:
-      '@nestjs/common':
-        specifier: ^10.0.0
-        version: 10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.1.14)(rxjs@7.8.2)
-      '@opentelemetry/api':
-        specifier: 1.8.0
-        version: 1.8.0
-      '@opentelemetry/context-async-hooks':
-        specifier: ^1.18.0
-        version: 1.30.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/core':
-        specifier: ^1.18.0
-        version: 1.30.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/exporter-metrics-otlp-http':
-        specifier: ^0.51.1
-        version: 0.51.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/exporter-trace-otlp-http':
-        specifier: ^0.51.1
-        version: 0.51.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/instrumentation':
-        specifier: ^0.51.1
-        version: 0.51.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/instrumentation-express':
-        specifier: ^0.40.1
-        version: 0.40.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/instrumentation-http':
-        specifier: ^0.51.1
-        version: 0.51.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/instrumentation-nestjs-core':
-        specifier: ^0.37.0
-        version: 0.37.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/propagator-b3':
-        specifier: ^1.18.0
-        version: 1.30.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/resources':
-        specifier: ^1.18.0
-        version: 1.30.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-metrics':
-        specifier: ^1.18.0
-        version: 1.30.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-node':
-        specifier: ^0.51.1
-        version: 0.51.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/semantic-conventions':
-        specifier: ^1.18.0
-        version: 1.37.0
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.23
-      express:
-        specifier: ^4.18.2
-        version: 4.21.2
-      rxjs:
-        specifier: ^7.8.1
-        version: 7.8.2
+      '@haizel/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@haizel/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
+      '@temporalio/workflow':
+        specifier: ^1.13.0
+        version: 1.13.0
+    devDependencies:
+      rimraf:
+        specifier: ^5.0.0
+        version: 5.0.10
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.2
 
   apps/connectors: {}
 
@@ -229,13 +191,13 @@ importers:
         version: 4.21.2
     devDependencies:
       '@types/express':
-        specifier: ^4.17.23
+        specifier: ^4.17.21
         version: 4.17.23
       '@types/node':
-        specifier: ^20.11.0
+        specifier: ^20.12.7
         version: 20.19.17
       typescript:
-        specifier: ^5.4.0
+        specifier: ^5.3.0
         version: 5.9.2
 
   apps/core-api:
@@ -1366,12 +1328,6 @@ packages:
 
   '@opentelemetry/instrumentation-http@0.51.1':
     resolution: {integrity: sha512-6b3nZnFFEz/3xZ6w8bVxctPUWIPWiXuPQ725530JgxnN1cvYFd8CJ75PrHZNjynmzSSnqBkN3ef4R9N+RpMh8Q==}
-    engines: {node: '>=14'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
-  '@opentelemetry/instrumentation-nestjs-core@0.37.1':
-    resolution: {integrity: sha512-ebYQjHZEmGHWEALwwDGhSQVLBaurFnuLIkZD5igPXrt7ohfF4lc5/4al1LO+vKc0NHk8SJWStuRueT86ISA8Vg==}
     engines: {node: '>=14'}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
@@ -6863,14 +6819,6 @@ snapshots:
       '@opentelemetry/instrumentation': 0.51.1(@opentelemetry/api@1.8.0)
       '@opentelemetry/semantic-conventions': 1.24.1
       semver: 7.7.2
-    transitivePeerDependencies:
-      - supports-color
-
-  '@opentelemetry/instrumentation-nestjs-core@0.37.1(@opentelemetry/api@1.8.0)':
-    dependencies:
-      '@opentelemetry/api': 1.8.0
-      '@opentelemetry/instrumentation': 0.51.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/semantic-conventions': 1.37.0
     transitivePeerDependencies:
       - supports-color
 
