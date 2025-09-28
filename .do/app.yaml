@@ -1,29 +1,68 @@
-spec:
-  name: haizel-app
-  services:
-    - name: core-api
-      environment_slug: node-js
-      instance_count: 1
-      instance_size_slug: basic-xxs
-      source_dir: blp
-      http_port: 3000
-      routes:
-        - path: /
-      envs:
-        - key: DATABASE_URL
-          type: SECRET
-          scope: RUN_AND_BUILD
-        - key: NODE_ENV
-          value: production
-          type: GENERAL
-          scope: RUN_TIME
-        - key: PORT
-          value: "3000"
-          type: GENERAL
-          scope: RUN_TIME
-      build_command: |
-        corepack enable && pnpm install --frozen-lockfile
-        pnpm --filter @haizel/db run generate
-        pnpm --filter @haizel/api run build
-        pnpm --filter core-api run build
-      run_command: pnpm --filter core-api run start
+name: haizel-core-api
+services:
+  - name: core-api
+    source_dir: ./blp
+    environment_slug: node-js
+    http_port: 3000
+    routes:
+      - path: /
+    build_command: |
+      corepack enable && corepack prepare pnpm@9.12.0 --activate
+      pnpm --version
+      # Lockfile sanity
+      pnpm run lock:check
+      pnpm install -w --frozen-lockfile
+      # Build order: observability -> api -> core-api
+      pnpm --filter @haizel/observability... run build
+      pnpm --filter @haizel/api...           run build
+      pnpm --filter @haizel/core-api...      run build
+    run_command: >
+      bash -lc "
+      pnpm --filter @haizel/db run migrate:deploy &&
+      pnpm --filter @haizel/core-api run start
+      "
+    envs:
+      # Required at build + run (Prisma)
+      - key: DATABASE_URL
+        type: SECRET
+        scope: RUN_AND_BUILD
+      # Runtime config
+      - key: NODE_ENV
+        value: production
+        type: GENERAL
+        scope: RUN_TIME
+      - key: PORT
+        value: "3000"
+        type: GENERAL
+        scope: RUN_TIME
+      # Auth (required to use any protected route)
+      - key: AUTH0_AUDIENCE
+        type: SECRET
+        scope: RUN_TIME
+      - key: AUTH0_ISSUER
+        type: SECRET
+        scope: RUN_TIME
+      - key: AUTH0_SECRET
+        type: SECRET
+        scope: RUN_TIME
+      # Observability (use TRACES endpoint the app actually reads)
+      - key: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        value: https://otel.your-collector/v1/traces
+        type: GENERAL
+        scope: RUN_TIME
+      # Optional defaults
+      - key: TEMPORAL_NAMESPACE
+        value: default
+        type: GENERAL
+        scope: RUN_TIME
+      - key: DOCUMENT_BUCKET
+        value: documents
+        type: GENERAL
+        scope: RUN_TIME
+health_check:
+  http_path: /health
+  initial_delay_seconds: 10
+  period_seconds: 10
+  timeout_seconds: 5
+  failure_threshold: 3
+
