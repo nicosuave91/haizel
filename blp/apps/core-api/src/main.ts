@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { HttpSpanInterceptor, initMetrics, initTracing, shutdownTracing } from '@haizel/api/observability';
+import { HttpSpanInterceptor, initMetrics, initTracing, shutdownTracing } from '@haizel/observability';
 import { AppModule } from './app.module';
 
 async function bootstrap() {

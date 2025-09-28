@@ -1,22 +1,41 @@
-name: haizel-app
+name: haizel-core-api
 services:
   - name: core-api
     source_dir: ./blp
-    http_port: 8080
+    http_port: 3000
     routes:
-      - path: /api
-    build_command: corepack enable && pnpm install --frozen-lockfile && pnpm --filter core-api run build
-    run_command: pnpm --filter core-api run start
+      - path: /
+    build_command: corepack enable && pnpm install --filter core-api... --frozen-lockfile && pnpm -r --filter 'core-api...' build && pnpm --filter core-api build
+    run_command: pnpm --filter core-api exec node dist/main.js
     environment_slug: node-js
     envs:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "8080"
-static_sites:
-  - name: web-app
-    source_dir: ./blp
-    build_command: corepack enable && pnpm install --frozen-lockfile && pnpm --filter web-app-react run build
-    output_dir: apps/web-app-react/dist
-    routes:
-      - path: /
+        value: "3000"
+      - key: DATABASE_URL
+        type: SECRET
+      - key: AUTH0_DOMAIN
+        type: GENERAL
+      - key: AUTH0_CLIENT_ID
+        type: SECRET
+      - key: AUTH0_CLIENT_SECRET
+        type: SECRET
+      - key: AUTH0_AUDIENCE
+        type: GENERAL
+      - key: AUTH0_ISSUER_BASE_URL
+        type: GENERAL
+      - key: X_TENANT_HEADER
+        type: GENERAL
+      - key: OPA_URL
+        type: GENERAL
+      - key: TEMPORAL_ADDRESS
+        type: GENERAL
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        type: GENERAL
+health_check:
+  http_path: /health
+  initial_delay_seconds: 10
+  period_seconds: 10
+  timeout_seconds: 5
+  failure_threshold: 3

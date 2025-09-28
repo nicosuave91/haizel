@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@haizel/api/observability": ["apps/api/src/observability/index.ts"]
+      "@haizel/observability": ["packages/observability/src/index.ts"]
     }
   }
 }

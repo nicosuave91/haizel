@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { redactLog, ensureNoPii } from '../../apps/api/src/observability/logRedaction';
+import { redactLog, ensureNoPii } from '@haizel/observability';
 
 describe('log redaction', () => {
   it('redacts SSN patterns', () => {
