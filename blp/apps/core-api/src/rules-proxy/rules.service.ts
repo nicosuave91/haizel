@@ -13,9 +13,7 @@ export class RulesProxyService {
 
   async evaluate(context: RequestContext, loanId: string, dto: RulesEvaluationDto) {
     await this.opa.authorize(context.user, { action: 'rules:evaluate', resourceTenant: context.tenantId });
-    const loan = await this.prisma.loan.findUnique({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-    });
+    const loan = await this.prisma.getLoanEntity(context.tenantId, loanId);
     if (!loan) {
       throw new Error('Loan not found');
     }

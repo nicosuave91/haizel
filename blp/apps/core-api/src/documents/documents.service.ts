@@ -33,9 +33,7 @@ export class DocumentsService {
       resourceTenant: context.tenantId,
     });
 
-    const loan = await this.prisma.loan.findUnique({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-    });
+    const loan = await this.prisma.findLoanModel(context.tenantId, loanId);
     if (!loan) {
       throw new NotFoundException('Loan not found');
     }
@@ -47,15 +45,9 @@ export class DocumentsService {
       contentType: dto.contentType,
     });
 
-    const document = await this.prisma.document.create({
-      data: {
-        tenantId: context.tenantId,
-        loanId,
-        name: dto.name,
-        contentType: dto.contentType,
-        storageKey,
-      },
-    });
+    const document = await this.prisma.transaction((tx) =>
+      this.prisma.createDocument(loan, { name: dto.name, contentType: dto.contentType, storageKey }, tx),
+    );
 
     this.events.emit({
       type: 'document.uploaded',
@@ -73,14 +65,12 @@ export class DocumentsService {
       resourceTenant: context.tenantId,
     });
 
-    const loan = await this.prisma.loan.findUnique({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-    });
+    const loan = await this.prisma.findLoanModel(context.tenantId, loanId);
     if (!loan) {
       throw new NotFoundException('Loan not found');
     }
 
-    return this.prisma.document.findMany({ where: { tenantId: context.tenantId, loanId } });
+    return this.prisma.listDocuments(loan);
   }
 
   getStoredObject(key: string): StoredObject | undefined {

@@ -7,6 +7,10 @@ import { AppModule } from '../src/app.module';
 import { ConfigService } from '../src/config';
 import { WorkflowsClient } from '../src/temporal/workflows.client';
 import { EventsProducerService } from '../src/events/producer.service';
+import { PrismaService } from '../src/common/prisma.service';
+
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL ?? 'postgresql://blp:blp@localhost:5432/blp';
 
 const tenantA = 'tenant-a';
 const tenantB = 'tenant-b';
@@ -31,8 +35,26 @@ describe('Core API integration', () => {
   let config: ConfigService;
   let workflows: WorkflowsClient;
   let events: EventsProducerService;
+  let prisma: PrismaService;
+
+  async function resetDatabase() {
+    await prisma.$transaction([
+      prisma.loanDocument.deleteMany({}),
+      prisma.loanTask.deleteMany({}),
+      prisma.auditEvent.deleteMany({}),
+      prisma.loanBorrower.deleteMany({}),
+      prisma.loan.deleteMany({}),
+      prisma.borrower.deleteMany({}),
+      prisma.documentCategory.deleteMany({}),
+      prisma.tenant.deleteMany({}),
+    ]);
+  }
 
   beforeAll(async () => {
+    prisma = new PrismaService();
+    await prisma.onModuleInit();
+    await resetDatabase();
+
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -46,8 +68,13 @@ describe('Core API integration', () => {
     events = app.get(EventsProducerService);
   });
 
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
   afterAll(async () => {
     await app.close();
+    await prisma.onModuleDestroy();
   });
 
   it('exposes public health endpoint', async () => {

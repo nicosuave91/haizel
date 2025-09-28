@@ -5,6 +5,7 @@ import { OpaService } from '../opa/opa.service';
 import { WorkflowsClient } from '../temporal/workflows.client';
 import { EventsProducerService } from '../events/producer.service';
 import { RequestContext } from '../common/interfaces';
+import { LoanStatus, Prisma } from '@prisma/client';
 
 interface CreateLockDto {
   rate: number;
@@ -22,26 +23,22 @@ export class PricingService {
 
   async lock(context: RequestContext, loanId: string, dto: CreateLockDto) {
     await this.opa.authorize(context.user, { action: 'pricing:lock', resourceTenant: context.tenantId });
-    const loan = await this.prisma.loan.findUnique({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-    });
+    const loan = await this.prisma.findLoanModel(context.tenantId, loanId);
     if (!loan) {
       throw new NotFoundException('Loan not found');
     }
 
     const expiresAt = addMinutes(new Date(), dto.durationMinutes);
-    const lock = await this.prisma.pricingLock.create({
-      data: {
-        tenantId: context.tenantId,
-        loanId,
-        rate: dto.rate,
-        expiresAt,
-      },
-    });
-
-    await this.prisma.loan.update({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-      data: { status: 'locked', pricingLockId: lock.id },
+    const lock = await this.prisma.transaction(async (tx) => {
+      const pricingLock = await this.prisma.recordPricingLock(loan, dto.rate, expiresAt, tx);
+      await tx.loan.update({
+        where: { id: loan.id },
+        data: {
+          status: LoanStatus.in_review,
+          interestRate: new Prisma.Decimal(dto.rate),
+        },
+      });
+      return pricingLock;
     });
 
     this.temporal.schedule('pricing.lock.expiration', lock.id, expiresAt);

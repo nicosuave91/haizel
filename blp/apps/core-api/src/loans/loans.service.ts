@@ -23,12 +23,9 @@ export class LoansService {
       resourceTenant: context.tenantId,
     });
 
-    const loan = await this.prisma.loan.create({
-      data: {
-        tenantId: context.tenantId,
-        borrowerName: dto.borrowerName,
-        amount: dto.amount,
-      },
+    const loan = await this.prisma.createLoan(context.tenantId, {
+      borrowerName: dto.borrowerName,
+      amount: dto.amount,
     });
 
     this.events.emit({
@@ -43,9 +40,7 @@ export class LoansService {
 
   async get(context: RequestContext, loanId: string): Promise<LoanEntity> {
     await this.opa.authorize(context.user, { action: 'loan:read', resourceTenant: context.tenantId });
-    const loan = await this.prisma.loan.findUnique({
-      where: { id_tenantId: { id: loanId, tenantId: context.tenantId } },
-    });
+    const loan = await this.prisma.getLoanEntity(context.tenantId, loanId);
     if (!loan) {
       throw new NotFoundException('Loan not found');
     }
@@ -54,6 +49,6 @@ export class LoansService {
 
   async list(context: RequestContext): Promise<LoanEntity[]> {
     await this.opa.authorize(context.user, { action: 'loan:list', resourceTenant: context.tenantId });
-    return this.prisma.loan.findMany({ where: { tenantId: context.tenantId } });
+    return this.prisma.listLoanEntities(context.tenantId);
   }
 }

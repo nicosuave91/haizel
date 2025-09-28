@@ -233,6 +233,9 @@ importers:
       '@opentelemetry/api':
         specifier: 1.8.0
         version: 1.8.0
+      '@prisma/client':
+        specifier: ^5.14.0
+        version: 5.22.0(prisma@5.22.0)
       aws-sdk:
         specifier: ^2.1481.0
         version: 2.1692.0
@@ -282,6 +285,9 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.17)(ts-node@10.9.2(@swc/core@1.13.20)(@types/node@20.19.17)(typescript@5.9.2))
+      prisma:
+        specifier: ^5.14.0
+        version: 5.22.0
       reflect-metadata:
         specifier: ^0.1.13
         version: 0.1.14
@@ -1395,6 +1401,7 @@ packages:
   '@paralleldrive/cuid2@2.2.2':
     resolution: {integrity: sha512-ZOBkgDwEdoYVlSeRbYYXs0S9MejQofiVYoTbKzy/6GQa39/q5tQU2IX46+shYnUkpEl3wc+J6wRlar7r2EK2xA==}
 
+
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
@@ -1403,6 +1410,7 @@ packages:
     resolution: {integrity: sha512-IVAh/nOJaw6W9g+RJVlIQJ6gSiER+ae6mKQ5CX1bERzQgbC1VSeBlwdvczT7pxb0GWiyrxH4TGKbMfDb4Sq/ig==}
     engines: {node: '>=18'}
     hasBin: true
+
 
   '@prisma/client@5.22.0':
     resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==}
