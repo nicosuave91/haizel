@@ -9,7 +9,7 @@
     "preinstall": "corepack enable && corepack prepare pnpm@9.12.0 --activate",
     "build": "pnpm -r run build",
     "lock:regen": "pnpm install && pnpm dedupe",
-    "lock:check": "node ./scripts/lock-check.mjs",
+    "lock:check": "pnpm install --frozen-lockfile --ignore-scripts --prefer-offline",
     "lock:verify-ci": "pnpm install -w --frozen-lockfile",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
