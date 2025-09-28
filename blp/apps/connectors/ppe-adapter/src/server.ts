@@ -1,14 +1,19 @@
 import express from 'express';
 import helmet from 'helmet';
+import { createSpanEnrichmentMiddleware, initializeConnectorTelemetry } from '@haizel/connectors-shared';
 import { PPEService } from './service';
 import { PPEQuoteRequest, PPERateLockRequest } from './mappers';
 
 const IDEMPOTENCY_HEADER = 'idempotency-key';
 
+const telemetryReady = initializeConnectorTelemetry('ppe-adapter');
+
 export function createServer(service = new PPEService()) {
+  void telemetryReady;
   const app = express();
   app.use(helmet());
   app.use(express.json());
+  app.use(createSpanEnrichmentMiddleware());
 
   app.post('/api/v1/ppe/quotes', async (req, res) => {
     try {

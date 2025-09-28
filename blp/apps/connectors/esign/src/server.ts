@@ -1,7 +1,11 @@
 import express from 'express';
 import helmet from 'helmet';
 import { ESignService } from './service';
-import { verifyHmacSignature } from '@haizel/connectors-shared';
+import {
+  createSpanEnrichmentMiddleware,
+  initializeConnectorTelemetry,
+  verifyHmacSignature,
+} from '@haizel/connectors-shared';
 
 const IDEMPOTENCY_HEADER = 'idempotency-key';
 const SIGNATURE_HEADER = 'x-blp-signature';
@@ -12,9 +16,13 @@ declare module 'express-serve-static-core' {
   }
 }
 
+const telemetryReady = initializeConnectorTelemetry('esign');
+
 export function createServer(service = new ESignService()) {
+  void telemetryReady;
   const app = express();
   app.use(helmet());
+  app.use(createSpanEnrichmentMiddleware());
   app.use(
     express.json({
       verify: (req, _res, buf) => {

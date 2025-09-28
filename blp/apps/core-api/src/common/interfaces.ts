@@ -7,6 +7,8 @@ export interface AuthUser {
 export interface RequestContext {
   tenantId: string;
   user: AuthUser;
+  requestId?: string;
+  traceId?: string;
 }
 
 export interface LoanEntity {

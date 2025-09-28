@@ -4,5 +4,6 @@ declare module 'express-serve-static-core' {
   interface Request {
     tenantId?: string;
     user?: AuthUser;
+    contextId?: string;
   }
 }

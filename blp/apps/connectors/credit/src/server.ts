@@ -1,14 +1,19 @@
 import express from 'express';
 import helmet from 'helmet';
+import { createSpanEnrichmentMiddleware, initializeConnectorTelemetry } from '@haizel/connectors-shared';
 import { CreditService } from './service';
 import { CreditPullRequest } from './mappers';
 
 const IDEMPOTENCY_HEADER = 'idempotency-key';
 
+const telemetryReady = initializeConnectorTelemetry('credit-connector');
+
 export function createServer(service = new CreditService()) {
+  void telemetryReady;
   const app = express();
   app.use(helmet());
   app.use(express.json());
+  app.use(createSpanEnrichmentMiddleware());
 
   app.post('/api/v1/credit/pulls', async (req, res) => {
     try {
