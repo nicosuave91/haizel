@@ -2,50 +2,63 @@ name: haizel-core-api
 services:
   - name: core-api
     source_dir: ./blp
+    environment_slug: node-js
     http_port: 3000
     routes:
       - path: /
     build_command: |
       corepack enable && corepack prepare pnpm@9.12.0 --activate
       pnpm --version
-
-      # Fail early if lockfile is stale
+      # Lockfile sanity
       pnpm run lock:check
-
-      # Deterministic install (will fail if mismatch somehow slipped in)
       pnpm install -w --frozen-lockfile
-
-      # Build in dependency order (adjust if you have others)
-      pnpm --filter @haizel/db run generate || true
-      pnpm --filter @haizel/api run build
-      pnpm -r run build
-    run_command: pnpm --filter core-api exec node dist/main.js
-    environment_slug: node-js
+      # Build order: observability -> api -> core-api
+      pnpm --filter @haizel/observability... run build
+      pnpm --filter @haizel/api...           run build
+      pnpm --filter @haizel/core-api...      run build
+    run_command: >
+      bash -lc "
+      pnpm --filter @haizel/db run migrate:deploy &&
+      pnpm --filter @haizel/core-api run start
+      "
     envs:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: "3000"
+      # Required at build + run (Prisma)
       - key: DATABASE_URL
         type: SECRET
-      - key: AUTH0_DOMAIN
+        scope: RUN_AND_BUILD
+      # Runtime config
+      - key: NODE_ENV
+        value: production
         type: GENERAL
-      - key: AUTH0_CLIENT_ID
-        type: SECRET
-      - key: AUTH0_CLIENT_SECRET
-        type: SECRET
+        scope: RUN_TIME
+      - key: PORT
+        value: "3000"
+        type: GENERAL
+        scope: RUN_TIME
+      # Auth (required to use any protected route)
       - key: AUTH0_AUDIENCE
+        type: SECRET
+        scope: RUN_TIME
+      - key: AUTH0_ISSUER
+        type: SECRET
+        scope: RUN_TIME
+      - key: AUTH0_SECRET
+        type: SECRET
+        scope: RUN_TIME
+      # Observability (use TRACES endpoint the app actually reads)
+      - key: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        value: https://otel.your-collector/v1/traces
         type: GENERAL
-      - key: AUTH0_ISSUER_BASE_URL
+        scope: RUN_TIME
+      # Optional defaults
+      - key: TEMPORAL_NAMESPACE
+        value: default
         type: GENERAL
-      - key: X_TENANT_HEADER
+        scope: RUN_TIME
+      - key: DOCUMENT_BUCKET
+        value: documents
         type: GENERAL
-      - key: OPA_URL
-        type: GENERAL
-      - key: TEMPORAL_ADDRESS
-        type: GENERAL
-      - key: OTEL_EXPORTER_OTLP_ENDPOINT
-        type: GENERAL
+        scope: RUN_TIME
 health_check:
   http_path: /health
   initial_delay_seconds: 10
