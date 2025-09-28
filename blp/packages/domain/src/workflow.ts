@@ -62,8 +62,8 @@ export interface ComplianceIssue {
 
 export type ComplianceStage =
   | 'PRE_FLIGHT'
-  | 'VERIFICATION'
+  | 'PRE_VENDOR_CALL'
+  | 'PRE_DISCLOSURE'
   | 'AUS'
-  | 'DISCLOSURES'
   | 'CTC'
   | 'CLOSING';

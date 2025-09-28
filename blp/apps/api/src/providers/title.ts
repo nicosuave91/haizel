@@ -1,4 +1,4 @@
-import { callWithRetry, ProviderContext, VendorError } from './base';
+import { ProviderContext, VendorError, VendorHttpClient, VendorEventName } from './base';
 
 export interface TitleOpenRequest {
   settlementAgent: string;
@@ -52,47 +52,100 @@ export class MockTitleProvider implements TitleProvider {
   }
 }
 
-export class AdapterBackedTitleProvider implements TitleProvider {
-  constructor(private readonly httpCall: (payload: unknown) => Promise<ResponseLike>) {}
+export class RealTitleProvider implements TitleProvider {
+  constructor(private readonly client: VendorHttpClient) {}
 
   async open(ctx: ProviderContext, request: TitleOpenRequest): Promise<TitleOrderResponse> {
-    const response = await callWithRetry(() => this.httpCall({ ctx, request, action: 'open' }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 600,
-    });
+    const { data } = await this.client.call<ExternalTitleOpenRequest, TitleOrderResponse>(
+      {
+        ctx,
+        vendor: 'title',
+        operation: 'open',
+        idempotencyKey: `title:open:${ctx.loanId}`,
+        request,
+        path: '/title/open',
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          settlementAgent: payload.settlementAgent,
+          notes: payload.notes,
+        }),
+        response: (payload) => normalizeTitleResponse(payload as ExternalTitleResponse),
+        successEvent: {
+          name: 'order.status.changed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'title',
+            orderId: response.orderId,
+            status: response.status,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('Title provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<TitleOrderResponse>;
+    return data;
   }
 
   async recordCurative(ctx: ProviderContext, orderId: string, tasks: TitleCurativeTask[]): Promise<TitleOrderResponse> {
-    const response = await callWithRetry(() => this.httpCall({ ctx, orderId, tasks, action: 'curative' }), {
-      maxAttempts: ctx.mockMode ? 1 : 3,
-      baseDelayMs: 600,
-    });
+    const { data } = await this.client.call<ExternalTitleCurativeRequest, TitleOrderResponse>(
+      {
+        ctx,
+        vendor: 'title',
+        operation: 'curative',
+        idempotencyKey: `title:curative:${ctx.loanId}:${orderId}`,
+        request: { orderId, tasks },
+        path: `/title/${orderId}/curative`,
+      },
+      {
+        request: (payload) => ({
+          correlationId: ctx.correlationId,
+          orderId: payload.orderId,
+          tasks: payload.tasks,
+        }),
+        response: (payload) => normalizeTitleResponse(payload as ExternalTitleResponse),
+        successEvent: {
+          name: 'order.status.changed' as VendorEventName,
+          payload: (response) => ({
+            tenantId: ctx.tenantId,
+            loanId: ctx.loanId,
+            vendor: 'title',
+            orderId: response.orderId,
+            status: response.status,
+          }),
+        },
+      },
+    );
 
-    if (response.status >= 400) {
-      const error: VendorError = Object.assign(new Error('Title provider error'), {
-        code: `HTTP_${response.status}`,
-        http: response.status,
-        retryable: response.status >= 500,
-      });
-      throw error;
-    }
-
-    return response.json() as Promise<TitleOrderResponse>;
+    return data;
   }
 }
 
-interface ResponseLike {
-  status: number;
-  json(): Promise<TitleOrderResponse>;
+interface ExternalTitleOpenRequest {
+  correlationId: string;
+  settlementAgent: string;
+  notes?: string;
+}
+
+interface ExternalTitleCurativeRequest {
+  correlationId: string;
+  orderId: string;
+  tasks: TitleCurativeTask[];
+}
+
+interface ExternalTitleResponse {
+  orderId: string;
+  status: TitleOrderResponse['status'];
+  curativeTasks: TitleCurativeTask[];
+  rawVendorResponse?: unknown;
+}
+
+function normalizeTitleResponse(payload: ExternalTitleResponse): TitleOrderResponse {
+  return {
+    orderId: payload.orderId,
+    status: payload.status,
+    curativeTasks: payload.curativeTasks,
+    rawVendorResponse: payload.rawVendorResponse ?? payload,
+  };
 }
