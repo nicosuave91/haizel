@@ -6,13 +6,13 @@ export interface WorkflowStepCardProps {
   onAction?: (step: WorkflowStepContract) => void;
 }
 
-const statusColors: Record<WorkflowStepContract['status'], string> = {
-  pending: '#fbbf24',
-  blocked: '#f87171',
-  in_progress: '#60a5fa',
-  complete: '#34d399',
-  failed: '#ef4444',
-  waived: '#a855f7',
+const statusLabels: Record<WorkflowStepContract['status'], string> = {
+  pending: 'Pending',
+  blocked: 'Blocked',
+  in_progress: 'In progress',
+  complete: 'Complete',
+  failed: 'Failed',
+  waived: 'Waived',
 };
 
 export const WorkflowStepCard: React.FC<WorkflowStepCardProps> = ({ step, onAction }) => {
@@ -20,11 +20,8 @@ export const WorkflowStepCard: React.FC<WorkflowStepCardProps> = ({ step, onActi
     <div className="workflow-step-card">
       <header className="workflow-step-card__header">
         <span className="workflow-step-card__code">{step.code}</span>
-        <span
-          className="workflow-step-card__status"
-          style={{ backgroundColor: statusColors[step.status] }}
-        >
-          {step.status.replace('_', ' ')}
+        <span className={`workflow-step-card__status workflow-step-card__status--${step.status}`}>
+          {statusLabels[step.status]}
         </span>
       </header>
       <div className="workflow-step-card__body">
