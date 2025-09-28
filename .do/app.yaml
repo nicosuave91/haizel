@@ -1,24 +1,18 @@
 spec:
-  name: haizel-core-api
+  name: haizel-app
   services:
     - name: core-api
       environment_slug: node-js
       instance_count: 1
       instance_size_slug: basic-xxs
       source_dir: blp
-      build_command: >-
-        corepack enable && pnpm install --filter core-api... --frozen-lockfile && pnpm -r --filter 'core-api...' build && pnpm --filter core-api build
-      run_command: pnpm --filter core-api exec node dist/main.js
       http_port: 3000
       routes:
         - path: /
-      health_check:
-        http_path: /health
-        initial_delay_seconds: 10
-        period_seconds: 10
-        timeout_seconds: 5
-        failure_threshold: 3
       envs:
+        - key: DATABASE_URL
+          type: SECRET
+          scope: RUN_AND_BUILD
         - key: NODE_ENV
           value: production
           type: GENERAL
@@ -27,33 +21,9 @@ spec:
           value: "3000"
           type: GENERAL
           scope: RUN_TIME
-        - key: DATABASE_URL
-          type: SECRET
-          scope: RUN_TIME
-        - key: AUTH0_DOMAIN
-          type: GENERAL
-          scope: RUN_TIME
-        - key: AUTH0_CLIENT_ID
-          type: SECRET
-          scope: RUN_TIME
-        - key: AUTH0_CLIENT_SECRET
-          type: SECRET
-          scope: RUN_TIME
-        - key: AUTH0_AUDIENCE
-          type: GENERAL
-          scope: RUN_TIME
-        - key: AUTH0_ISSUER_BASE_URL
-          type: GENERAL
-          scope: RUN_TIME
-        - key: X_TENANT_HEADER
-          type: GENERAL
-          scope: RUN_TIME
-        - key: OPA_URL
-          type: GENERAL
-          scope: RUN_TIME
-        - key: TEMPORAL_ADDRESS
-          type: GENERAL
-          scope: RUN_TIME
-        - key: OTEL_EXPORTER_OTLP_ENDPOINT
-          type: GENERAL
-          scope: RUN_TIME
+      build_command: |
+        corepack enable && pnpm install --frozen-lockfile
+        pnpm --filter @haizel/db run generate
+        pnpm --filter @haizel/api run build
+        pnpm --filter core-api run build
+      run_command: pnpm --filter core-api run start
