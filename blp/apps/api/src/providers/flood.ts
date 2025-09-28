@@ -24,7 +24,7 @@ export class RealFloodProvider implements FloodProvider {
   constructor(private readonly client: VendorHttpClient) {}
 
   async order(ctx: ProviderContext): Promise<FloodOrderResponse> {
-    const { data } = await this.client.call<ExternalFloodRequest, FloodOrderResponse>(
+    const { data } = await this.client.call<ExternalFloodRequest, ExternalFloodRequest, FloodOrderResponse>(
       {
         ctx,
         vendor: 'flood',

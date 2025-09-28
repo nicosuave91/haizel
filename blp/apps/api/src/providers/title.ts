@@ -56,7 +56,11 @@ export class RealTitleProvider implements TitleProvider {
   constructor(private readonly client: VendorHttpClient) {}
 
   async open(ctx: ProviderContext, request: TitleOpenRequest): Promise<TitleOrderResponse> {
-    const { data } = await this.client.call<ExternalTitleOpenRequest, TitleOrderResponse>(
+    const { data } = await this.client.call<
+      TitleOpenRequest,
+      ExternalTitleOpenRequest,
+      TitleOrderResponse
+    >(
       {
         ctx,
         vendor: 'title',
@@ -89,7 +93,11 @@ export class RealTitleProvider implements TitleProvider {
   }
 
   async recordCurative(ctx: ProviderContext, orderId: string, tasks: TitleCurativeTask[]): Promise<TitleOrderResponse> {
-    const { data } = await this.client.call<ExternalTitleCurativeRequest, TitleOrderResponse>(
+    const { data } = await this.client.call<
+      { orderId: string; tasks: TitleCurativeTask[] },
+      ExternalTitleCurativeRequest,
+      TitleOrderResponse
+    >(
       {
         ctx,
         vendor: 'title',

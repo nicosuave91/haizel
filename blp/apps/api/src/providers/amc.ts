@@ -44,7 +44,7 @@ export class RealAppraisalManagementCompanyProvider implements AppraisalManageme
   constructor(private readonly client: VendorHttpClient) {}
 
   async order(ctx: ProviderContext, request: AppraisalOrderRequest): Promise<AppraisalOrderResponse> {
-    const { data } = await this.client.call<ExternalAppraisalOrderRequest, AppraisalOrderResponse>(
+    const { data } = await this.client.call<AppraisalOrderRequest, ExternalAppraisalOrderRequest, AppraisalOrderResponse>(
       {
         ctx,
         vendor: 'amc',

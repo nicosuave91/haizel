@@ -118,7 +118,7 @@ async function propertyAndRiskStage(ctx: StepExecutionContext): Promise<void> {
 }
 
 async function ausStage(ctx: StepExecutionContext): Promise<void> {
-  const result = await executeStep('AUS', activities.submitAus, ctx);
+  const result = await executeStep<AUSResult>('AUS', activities.submitAus, ctx);
   if (result?.ausDecision === 'REFER_WITH_CAUTION') {
     await waitForUnblock();
   }
@@ -150,7 +150,7 @@ async function closingStage(ctx: StepExecutionContext): Promise<void> {
   await activities.closeLoan({ ...ctx, stepCode: 'CLOSING' });
 }
 
-async function executeStep<T extends StepResult | AUSResult>(
+async function executeStep<T extends StepResult>(
   stepCode: StepCode,
   activity: (input: StepExecutionContext) => Promise<T>,
   baseCtx: StepExecutionContext,

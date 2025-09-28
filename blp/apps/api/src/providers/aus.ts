@@ -45,7 +45,11 @@ export class RealAutomatedUnderwritingProvider implements AutomatedUnderwritingP
   constructor(private readonly client: VendorHttpClient) {}
 
   async submit(ctx: ProviderContext, request: AUSSubmitRequest): Promise<AUSSubmitResponse> {
-    const { data } = await this.client.call<ExternalAusSubmitRequest, AUSSubmitResponse>(
+    const { data } = await this.client.call<
+      AUSSubmitRequest,
+      ExternalAusSubmitRequest,
+      AUSSubmitResponse
+    >(
       {
         ctx,
         vendor: 'aus',

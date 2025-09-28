@@ -75,7 +75,11 @@ export class RealCreditProvider implements CreditProvider {
     }
 
     const idempotencyKey = `credit:tri-merge:${ctx.loanId}:${input.consentToken}`;
-    const { data } = await this.client.call<ExternalCreditRequest, CreditProviderResponse>(
+    const { data } = await this.client.call<
+      CreditProviderRequest,
+      SerializedCreditRequest,
+      CreditProviderResponse
+    >(
       {
         ctx,
         vendor: 'credit',
@@ -115,11 +119,15 @@ export class RealCreditProvider implements CreditProvider {
 }
 
 interface ExternalCreditRequest {
-  correlationId: string;
   borrower: CreditProviderRequest['borrower'];
   coBorrower?: CreditProviderRequest['borrower'];
   consentToken: string;
-  options?: CreditProviderRequest['options'];
+  options?: Record<string, unknown>;
+}
+
+interface SerializedCreditRequest {
+  correlationId: string;
+  payload: ExternalCreditRequest;
 }
 
 interface ExternalCreditResponse {
@@ -128,7 +136,7 @@ interface ExternalCreditResponse {
   rawVendorResponse: unknown;
 }
 
-function serializeRequest(ctx: ProviderContext, input: ExternalCreditRequest) {
+function serializeRequest(ctx: ProviderContext, input: ExternalCreditRequest): SerializedCreditRequest {
   return {
     correlationId: ctx.correlationId,
     payload: input,

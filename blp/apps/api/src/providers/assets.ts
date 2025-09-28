@@ -59,7 +59,11 @@ export class RealAssetVerificationProvider implements AssetVerificationProvider 
       throw error;
     }
 
-    const { data } = await this.client.call<ExternalAssetRequest, AssetVerificationProviderResponse>(
+    const { data } = await this.client.call<
+      AssetVerificationProviderRequest,
+      ExternalAssetRequest,
+      AssetVerificationProviderResponse
+    >(
       {
         ctx,
         vendor: 'assets',

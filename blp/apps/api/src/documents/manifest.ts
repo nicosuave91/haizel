@@ -105,7 +105,8 @@ export class DocumentManifestService {
         ];
 
     const received = nextDocuments.filter((doc) => doc.required && doc.received).length;
-    const status = received === manifest.required ? 'complete' : received > 0 ? 'in_progress' : 'pending';
+    const status: ManifestSummary['status'] =
+      received === manifest.required ? 'complete' : received > 0 ? 'in_progress' : 'pending';
 
     const next: ManifestSummary = {
       ...manifest,
@@ -125,8 +126,9 @@ export class DocumentManifestService {
       return null;
     }
     const received = manifest.documents.filter((doc) => doc.required && doc.received).length;
-    const status = received === manifest.required ? 'complete' : received > 0 ? 'in_progress' : 'pending';
-    const next = {
+    const status: ManifestSummary['status'] =
+      received === manifest.required ? 'complete' : received > 0 ? 'in_progress' : 'pending';
+    const next: ManifestSummary = {
       ...manifest,
       received,
       status,

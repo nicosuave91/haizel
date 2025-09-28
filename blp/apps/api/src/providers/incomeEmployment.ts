@@ -56,7 +56,11 @@ export class RealIncomeEmploymentProvider implements IncomeEmploymentProvider {
       throw error;
     }
 
-    const { data } = await this.client.call<ExternalIncomeEmploymentRequest, IncomeEmploymentProviderResponse>(
+    const { data } = await this.client.call<
+      IncomeEmploymentProviderRequest,
+      ExternalIncomeEmploymentRequest,
+      IncomeEmploymentProviderResponse
+    >(
       {
         ctx,
         vendor: 'income_employment',

@@ -53,7 +53,11 @@ export class RealESignProvider implements ESignProvider {
   constructor(private readonly client: VendorHttpClient) {}
 
   async generate(ctx: ProviderContext, request: ESignGenerateRequest): Promise<ESignEnvelope> {
-    const { data } = await this.client.call<ExternalESignGenerateRequest, ESignEnvelope>(
+    const { data } = await this.client.call<
+      ESignGenerateRequest,
+      ExternalESignGenerateRequest,
+      ESignEnvelope
+    >(
       {
         ctx,
         vendor: 'esign',
@@ -87,7 +91,11 @@ export class RealESignProvider implements ESignProvider {
   }
 
   async send(ctx: ProviderContext, envelopeId: string): Promise<ESignEnvelope> {
-    const { data } = await this.client.call<ExternalESignSendRequest, ESignEnvelope>(
+    const { data } = await this.client.call<
+      { envelopeId: string },
+      ExternalESignSendRequest,
+      ESignEnvelope
+    >(
       {
         ctx,
         vendor: 'esign',
