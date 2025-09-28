@@ -52,6 +52,18 @@ Run the workspace-level `pnpm` scripts from the `blp` directory to mirror what t
 - `pnpm test` fans out to `pnpm -r test`, which aligns with the Node test suites triggered by both [Core API CI](blp/.github/workflows/ci-core.yml) and the connector matrix in [Connectors CI](blp/.github/workflows/ci-connectors.yml).
 - `pnpm -r build` ensures each package still builds (and therefore type-checks) before shipping, mirroring the build stage in [Core API CI](blp/.github/workflows/ci-core.yml).
 - `pnpm test:rls` runs `bash db/tests/run_rls_checks.sh`, which requires a running Postgres instance and a `DATABASE_URL` pointing at it (the compose stack provides this). Keeping the RLS policies passing prevents surprises when the API and connector tests in [Core API CI](blp/.github/workflows/ci-core.yml) and [Connectors CI](blp/.github/workflows/ci-connectors.yml) exercise the same tables.
+- `pnpm run ci:quick` mirrors the build and test ordering that the main CI workflow executes so you can verify the same path locally.
+
+### Lockfile maintenance
+
+This repository enforces deterministic dependency resolution in CI with `pnpm install --frozen-lockfile`. When you change any `package.json`, run the helper below from the `blp` directory to regenerate the lockfile and dedupe packages, then commit the updated `blp/pnpm-lock.yaml` alongside your changes:
+
+```bash
+pnpm run lock:regen
+git add blp/pnpm-lock.yaml
+```
+
+Skipping this step will cause the CI job to fail during the lockfile verification stage.
 
 ### Useful service endpoints
 
