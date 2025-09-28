@@ -31,8 +31,13 @@ jobs:
       - name: Build
         run: pnpm -r run build
 
-      - name: Test
-        run: pnpm -r run test --if-present
+      - name: Test (unit)
+        run: pnpm -r --filter '!connectors' --filter '!./apps/connectors/*' run test --if-present
+
+      - name: Test (connectors)
+        run: pnpm -r --workspace-concurrency=1 --filter './apps/connectors/*' run test --if-present
+        env:
+          PACT_LOG_LEVEL: warn
 
       - name: Debug pnpm PATH (on failure)
         if: failure()

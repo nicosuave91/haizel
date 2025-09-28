@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm concurrently 'pnpm --filter ppe-adapter dev' 'pnpm --filter credit dev' 'pnpm --filter aus-gateway dev' 'pnpm --filter esign dev'",
-    "test": "pnpm --filter 'apps/connectors/*' test"
+    "test": "pnpm -r --workspace-concurrency=1 --filter './*' test"
   }
 }
