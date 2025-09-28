@@ -8,14 +8,15 @@
   "scripts": {
     "preinstall": "corepack enable && corepack prepare pnpm@9.12.0 --activate",
     "build": "pnpm -r run build",
-    "lock:regen": "pnpm install -w --no-frozen-lockfile && pnpm dedupe -w",
+    "lock:regen": "pnpm install && pnpm dedupe",
     "lock:check": "node ./scripts/lock-check.mjs",
     "lock:verify-ci": "pnpm install -w --frozen-lockfile",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "test:rls": "bash db/tests/run_rls_checks.sh",
     "test:core-api": "./scripts/test-core-api.sh",
-    "dev": "docker compose -f infra/docker-compose.dev.yml up --build"
+    "dev": "docker compose -f infra/docker-compose.dev.yml up --build",
+    "ci:quick": "pnpm --filter @haizel/observability... run build && pnpm --filter @haizel/api... run build && pnpm --filter @haizel/core-api... run build && pnpm test --if-present"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
