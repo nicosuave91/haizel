@@ -1,0 +1,484 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantRole {
+  owner
+  admin
+  loan_officer
+  processor
+  viewer
+  @@map("tenant_role")
+}
+
+enum BorrowerType {
+  individual
+  business
+  @@map("borrower_type")
+}
+
+enum LoanStatus {
+  draft
+  submitted
+  in_review
+  approved
+  funded
+  closed
+  withdrawn
+  declined
+  @@map("loan_status")
+}
+
+enum DocumentStatus {
+  pending
+  requested
+  received
+  validated
+  waived
+  @@map("document_status")
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  blocked
+  completed
+  cancelled
+  @@map("task_status")
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+  @@map("task_priority")
+}
+
+enum RuleEffect {
+  approve
+  manual_review
+  decline
+  notify
+  @@map("rule_effect")
+}
+
+enum RuleSeverity {
+  info
+  warning
+  critical
+  @@map("rule_severity")
+}
+
+model Tenant {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String         @unique @db.Citext
+  displayName String         @map("display_name")
+  timezone    String
+  contactEmail String?       @map("contact_email")
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenantUsers TenantUser[]
+  borrowers   Borrower[]
+  loans       Loan[]
+  documentCategories DocumentCategory[]
+  ruleCategories RuleCategory[]
+  ruleSets    RuleSet[]
+  retentionPolicies RetentionPolicy[]
+  retentionPolicyAssignments RetentionPolicyAssignment[]
+  dataRetentionExemptions DataRetentionExemption[]
+  holidayCalendars HolidayCalendar[]
+  holidays    Holiday[]
+  auditEvents AuditEvent[]
+  loanDocuments LoanDocument[]
+  loanTasks   LoanTask[]
+  loanParticipants LoanBorrower[]
+
+  @@map("tenants")
+}
+
+model User {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String       @unique @db.Citext
+  fullName   String       @map("full_name")
+  locale     String
+  avatarUrl  String?      @map("avatar_url")
+  isActive   Boolean      @default(true) @map("is_active")
+  lastSeenAt DateTime?    @map("last_seen_at") @db.Timestamptz(6)
+  createdAt  DateTime     @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  memberships TenantUser[]
+  uploadedDocuments LoanDocument[]
+
+  @@map("users")
+}
+
+model TenantUser {
+  tenantId   String      @map("tenant_id") @db.Uuid
+  userId     String      @map("user_id") @db.Uuid
+  role       TenantRole  @default(viewer)
+  invitedAt  DateTime?   @map("invited_at") @db.Timestamptz(6)
+  acceptedAt DateTime?   @map("accepted_at") @db.Timestamptz(6)
+  createdAt  DateTime    @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime    @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedTasks LoanTask[]
+  uploadedDocuments LoanDocument[] @relation("DocumentUploader")
+  grantedExemptions DataRetentionExemption[]
+  auditEvents AuditEvent[]
+
+  @@id([tenantId, userId])
+  @@index([userId], map: "idx_tenant_users_user_id")
+  @@map("tenant_users")
+}
+
+model Borrower {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  type           BorrowerType   @default(individual)
+  legalName      String         @map("legal_name")
+  email          String?
+  phone          String?
+  taxIdentifier  String?        @map("tax_identifier")
+  dateOfBirth    DateTime?      @map("date_of_birth") @db.Date
+  createdAt      DateTime       @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  primaryLoans   Loan[]         @relation("PrimaryBorrower")
+  loanParticipants LoanBorrower[] @relation("LoanParticipantBorrower")
+  documents      LoanDocument[]
+
+  @@unique([tenantId, id])
+  @@map("borrowers")
+}
+
+model Loan {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  primaryBorrowerId String        @map("primary_borrower_id") @db.Uuid
+  loanNumber        String        @map("loan_number")
+  productType       String?       @map("product_type")
+  purpose           String?
+  status            LoanStatus    @default(draft)
+  requestedAmount   Decimal       @map("requested_amount") @db.Numeric(16, 2)
+  currencyCode      String        @map("currency_code") @db.Char(3)
+  interestRate      Decimal?      @map("interest_rate") @db.Numeric(7, 4)
+  submittedAt       DateTime?     @map("submitted_at") @db.Timestamptz(6)
+  decisionedAt      DateTime?     @map("decisioned_at") @db.Timestamptz(6)
+  fundedAt          DateTime?     @map("funded_at") @db.Timestamptz(6)
+  closedAt          DateTime?     @map("closed_at") @db.Timestamptz(6)
+  createdAt         DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  primaryBorrower   Borrower      @relation("PrimaryBorrower", fields: [primaryBorrowerId], references: [id])
+  participants      LoanBorrower[] @relation("LoanParticipantLoan")
+  documents         LoanDocument[]
+  tasks             LoanTask[]
+
+  @@unique([tenantId, loanNumber])
+  @@unique([tenantId, id])
+  @@index([tenantId, status], map: "idx_loans_tenant_status")
+  @@index([primaryBorrowerId], map: "idx_loans_primary_borrower")
+  @@map("loans")
+}
+
+model LoanBorrower {
+  tenantId      String    @map("tenant_id") @db.Uuid
+  loanId        String    @map("loan_id") @db.Uuid
+  borrowerId    String    @map("borrower_id") @db.Uuid
+  isPrimary     Boolean   @map("is_primary") @default(false)
+  ownershipPercent Decimal? @map("ownership_percent") @db.Numeric(5, 2)
+  createdAt     DateTime  @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan          Loan      @relation(name: "LoanParticipantLoan", fields: [tenantId, loanId], references: [tenantId, id], onDelete: Cascade)
+  borrower      Borrower  @relation(name: "LoanParticipantBorrower", fields: [tenantId, borrowerId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([loanId, borrowerId])
+  @@map("loan_borrowers")
+}
+
+model DocumentCategory {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String           @map("tenant_id") @db.Uuid
+  code                  String
+  displayName           String           @map("display_name")
+  description           String?
+  retentionCategoryCode String?          @map("retention_category_code")
+  createdAt             DateTime         @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime         @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant                Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  retentionCategory     RetentionCategory? @relation(fields: [retentionCategoryCode], references: [code])
+  documents             LoanDocument[]
+
+  @@unique([tenantId, code])
+  @@map("document_categories")
+}
+
+model LoanDocument {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String        @map("tenant_id") @db.Uuid
+  loanId             String        @map("loan_id") @db.Uuid
+  borrowerId         String?       @map("borrower_id") @db.Uuid
+  documentCategoryId String        @map("document_category_id") @db.Uuid
+  fileName           String        @map("file_name")
+  storageUri         String        @map("storage_uri")
+  fileSize           BigInt?       @map("file_size")
+  checksum           String?
+  status             DocumentStatus @default(pending)
+  uploadedByUserId   String?       @map("uploaded_by_user_id") @db.Uuid
+  uploadedAt         DateTime      @default(dbgenerated("now()")) @map("uploaded_at") @db.Timestamptz(6)
+  verifiedAt         DateTime?     @map("verified_at") @db.Timestamptz(6)
+  metadata           Json          @default(dbgenerated("'{}'::jsonb"))
+  createdAt          DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan               Loan          @relation(fields: [tenantId, loanId], references: [tenantId, id], onDelete: Cascade)
+  borrower           Borrower?     @relation(fields: [tenantId, borrowerId], references: [tenantId, id])
+  category           DocumentCategory @relation(fields: [documentCategoryId], references: [id])
+  uploadedBy         TenantUser?   @relation("DocumentUploader", fields: [tenantId, uploadedByUserId], references: [tenantId, userId])
+
+  @@unique([tenantId, id])
+  @@index([loanId], map: "idx_loan_documents_loan_id")
+  @@index([status], map: "idx_loan_documents_status")
+  @@map("loan_documents")
+}
+
+model LoanTask {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String       @map("tenant_id") @db.Uuid
+  loanId           String       @map("loan_id") @db.Uuid
+  title            String
+  description      String?
+  status           TaskStatus   @default(open)
+  priority         TaskPriority @default(medium)
+  dueDate          DateTime?    @map("due_date") @db.Date
+  assignedToUserId String?      @map("assigned_to_user_id") @db.Uuid
+  completedAt      DateTime?    @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime     @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  loan             Loan         @relation(fields: [tenantId, loanId], references: [tenantId, id], onDelete: Cascade)
+  assignedTo       TenantUser?  @relation(fields: [tenantId, assignedToUserId], references: [tenantId, userId])
+
+  @@unique([tenantId, id])
+  @@index([status], map: "idx_loan_tasks_status")
+  @@index([dueDate], map: "idx_loan_tasks_due_date")
+  @@map("loan_tasks")
+}
+
+model RuleCategory {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  code        String
+  displayName String        @map("display_name")
+  description String?
+  createdAt   DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ruleSets    RuleSet[]
+
+  @@unique([tenantId, code])
+  @@map("rule_categories")
+}
+
+model RuleSet {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  categoryId  String?       @map("category_id") @db.Uuid
+  code        String
+  name        String
+  description String?
+  triggerEvent String       @map("trigger_event")
+  isActive    Boolean       @default(true) @map("is_active")
+  version     Int           @default(1)
+  createdAt   DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category    RuleCategory? @relation(fields: [tenantId, categoryId], references: [tenantId, id])
+  rules       RuleDefinition[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, id])
+  @@index([tenantId, triggerEvent, isActive], map: "idx_rule_sets_event_active")
+  @@map("rule_sets")
+}
+
+model RuleDefinition {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  ruleSetId      String        @map("rule_set_id") @db.Uuid
+  name           String
+  description    String?
+  triggerEvent   String        @map("trigger_event")
+  priority       Int           @default(0)
+  effect         RuleEffect
+  severity       RuleSeverity  @default(info)
+  condition      Json
+  action         Json          @default(dbgenerated("'{}'::jsonb"))
+  activeFrom     DateTime?     @map("active_from") @db.Timestamptz(6)
+  activeTo       DateTime?     @map("active_to") @db.Timestamptz(6)
+  createdAt      DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ruleSet        RuleSet       @relation(fields: [tenantId, ruleSetId], references: [tenantId, id], onDelete: Cascade)
+  parameters     RuleParameter[]
+
+  @@unique([tenantId, ruleSetId, name])
+  @@unique([tenantId, id])
+  @@index([ruleSetId, priority], map: "idx_rule_definitions_priority")
+  @@index([tenantId, triggerEvent], map: "idx_rule_definitions_trigger_event")
+  @@map("rule_definitions")
+}
+
+model RuleParameter {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  ruleDefinitionId String        @map("rule_definition_id") @db.Uuid
+  key              String
+  label            String?
+  valueType        String        @map("value_type")
+  isRequired       Boolean       @default(false) @map("is_required")
+  defaultValue     Json?
+  createdAt        DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rule             RuleDefinition @relation(fields: [tenantId, ruleDefinitionId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, ruleDefinitionId, key])
+  @@map("rule_parameters")
+}
+
+model RetentionCategory {
+  code        String        @id
+  displayName String        @map("display_name")
+  description String?
+  defaultRetentionMonths Int? @map("default_retention_months")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  documentCategories DocumentCategory[]
+  retentionPolicies RetentionPolicy[]
+
+  @@map("retention_categories")
+}
+
+model RetentionPolicy {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  categoryCode      String        @map("category_code")
+  name              String
+  retentionMonths   Int           @map("retention_months")
+  reviewIntervalMonths Int?       @map("review_interval_months")
+  disposition       String
+  holdUntilEvent    String?       @map("hold_until_event")
+  isDefault         Boolean       @default(false) @map("is_default")
+  notes             String?
+  createdAt         DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category          RetentionCategory @relation(fields: [categoryCode], references: [code])
+  assignments       RetentionPolicyAssignment[]
+  exemptions        DataRetentionExemption[]
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, id])
+  @@index([tenantId, categoryCode], map: "idx_retention_policies_category")
+  @@map("retention_policies")
+}
+
+model RetentionPolicyAssignment {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String        @map("tenant_id") @db.Uuid
+  policyId           String        @map("policy_id") @db.Uuid
+  resourceType       String        @map("resource_type")
+  resourceIdentifier String        @map("resource_identifier")
+  createdAt          DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  policy             RetentionPolicy @relation(fields: [tenantId, policyId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, resourceType, resourceIdentifier])
+  @@index([policyId], map: "idx_retention_policy_assignments_policy")
+  @@map("retention_policy_assignments")
+}
+
+model DataRetentionExemption {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String        @map("tenant_id") @db.Uuid
+  resourceType       String        @map("resource_type")
+  resourceIdentifier String        @map("resource_identifier")
+  policyId           String?       @map("policy_id") @db.Uuid
+  reason             String
+  grantedByUserId    String?       @map("granted_by_user_id") @db.Uuid
+  expiresAt          DateTime?     @map("expires_at") @db.Timestamptz(6)
+  createdAt          DateTime      @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime      @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  policy             RetentionPolicy? @relation(fields: [tenantId, policyId], references: [tenantId, id], onDelete: SetNull)
+  grantedBy          TenantUser?   @relation(fields: [tenantId, grantedByUserId], references: [tenantId, userId], onDelete: SetNull)
+
+  @@unique([tenantId, resourceType, resourceIdentifier])
+  @@index([tenantId, resourceType, resourceIdentifier], map: "idx_data_retention_exemptions_resource")
+  @@map("data_retention_exemptions")
+}
+
+model HolidayCalendar {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String     @map("tenant_id") @db.Uuid
+  name       String
+  timezone   String
+  isDefault  Boolean    @default(false) @map("is_default")
+  createdAt  DateTime   @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime   @default(dbgenerated("now()")) @map("updated_at") @db.Timestamptz(6)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  holidays   Holiday[]
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, id])
+  @@index([tenantId, isDefault], name: "idx_holiday_calendars_default")
+  @@map("holiday_calendars")
+}
+
+model Holiday {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  calendarId  String    @map("calendar_id") @db.Uuid
+  holidayDate DateTime  @map("holiday_date") @db.Date
+  label       String
+  isRecurring Boolean   @default(false) @map("is_recurring")
+  createdAt   DateTime  @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  calendar    HolidayCalendar @relation(fields: [tenantId, calendarId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([calendarId, holidayDate, label])
+  @@index([tenantId, holidayDate], map: "idx_holidays_date")
+  @@map("holidays")
+}
+
+model AuditEvent {
+  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String     @map("tenant_id") @db.Uuid
+  actorId          String?    @map("actor_id") @db.Uuid
+  actorType        String     @map("actor_type")
+  action           String
+  entityType       String     @map("entity_type")
+  entityId         String?    @map("entity_id") @db.Uuid
+  entityExternalId String?    @map("entity_external_id")
+  metadata         Json       @default(dbgenerated("'{}'::jsonb"))
+  requestId        String?    @map("request_id") @db.Uuid
+  occurredAt       DateTime   @default(dbgenerated("now()")) @map("occurred_at") @db.Timestamptz(6)
+  createdAt        DateTime   @default(dbgenerated("now()")) @map("created_at") @db.Timestamptz(6)
+  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor            TenantUser? @relation(fields: [tenantId, actorId], references: [tenantId, userId], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId], map: "idx_audit_events_entity")
+  @@index([tenantId, requestId], map: "idx_audit_events_request")
+  @@map("audit_events")
+}
